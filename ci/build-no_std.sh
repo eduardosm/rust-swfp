@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+. ci/utils.sh
+
+begin_group "Fetch dependencies"
+cargo fetch --locked
+end_group
+
+target="x86_64-unknown-none"
+features_array=("")
+
+for features in "${features_array[@]}"; do
+  begin_group "Build swfp, target=\"$target\", features=\"$features\""
+  cargo build --frozen -p swfp --target "$target" --no-default-features --features "$features"
+  end_group
+done

@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+
+jobs:
+  report:
+    needs:
+      - lint-aux
+      - extract-changelog
+      - rustfmt
+      - clippy
+      - build-and-test
+      - build-no_std
+      - check-generator
+      - package-crate
+    # '!cancelled()' is needed because GitHub treats a skipped job (due to a
+    # failed dependency) a success.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Report status
+        env:
+          NEEDS_JSON: ${{ toJson(needs) }}
+        # Make sure all dependencies succeeded.
+        run: jq --exit-status 'all(.result == "success")' <<< "$NEEDS_JSON"
+
+  lint-aux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install lint utilities
+        run: sudo npm install -g markdownlint-cli@0.48.0 markdown-link-check@3.14.2
+      - name: Install Rust
+        run: ./ci/install-rust.sh stable --profile minimal
+      - run: ./ci/lint-aux.sh
+
+  extract-changelog:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust
+        run: ./ci/install-rust.sh stable --profile minimal
+      - run: ./ci/extract-changelog.sh
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: version-changelog
+          path: version-changelog
+          if-no-files-found: error
+
+  rustfmt:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust
+        run: ./ci/install-rust.sh stable --profile minimal -c rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust
+        run: ./ci/install-rust.sh stable --profile minimal -c clippy
+      - run: ./ci/clippy.sh
+
+  build-and-test:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - rust-version: msrv
+          - rust-version: stable
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust
+        run: ./ci/install-rust.sh "${{ matrix.rust-version }}" --profile minimal
+      - run: ./ci/build-and-test.sh
+
+  build-no_std:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust
+        run: ./ci/install-rust.sh stable --profile minimal -t x86_64-unknown-none
+      - run: ./ci/build-no_std.sh
+
+  check-generator:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Sollya
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends sollya
+      - name: Install Julia
+        run: |
+          wget "https://julialang-s3.julialang.org/bin/linux/x64/1.12/julia-1.12.5-linux-x86_64.tar.gz"
+          sudo tar -xvf julia-1.12.5-linux-x86_64.tar.gz -C /opt
+          echo "/opt/julia-1.12.5/bin" >> "$GITHUB_PATH"
+      - name: Install Rust
+        run: ./ci/install-rust.sh stable --profile minimal -c rustfmt
+      - run: ./ci/check-generator.sh
+
+  package-crate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust
+        run: ./ci/install-rust.sh stable --profile minimal
+      - run: ./ci/package-crate.sh
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: packaged-crate
+          path: output
+          if-no-files-found: error

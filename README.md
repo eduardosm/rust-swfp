@@ -1,5 +1,8 @@
 # swfp
 
+[![GitHub Actions Status](https://github.com/eduardosm/rust-swfp/workflows/CI/badge.svg)](https://github.com/eduardosm/rust-swfp/actions)
+![MSRV](https://img.shields.io/badge/rustc-1.91+-lightgray.svg)
+
 swfp is a pure-Rust soft-float library. It provides arithmetic and
 correctly-rounded math functions.
 
