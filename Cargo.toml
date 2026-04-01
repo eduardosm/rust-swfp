@@ -1,0 +1,30 @@
+[package]
+name = "swfp"
+version = "0.1.0-pre"
+authors = ["Eduardo Sánchez Muñoz <eduardosm-dev@e64.io>"]
+edition = "2024"
+rust-version = "1.91"
+description = "A soft-float library"
+license = "MIT OR Apache-2.0"
+keywords = ["float", "floating-point", "math", "soft-float"]
+categories = ["mathematics", "no-std", "science"]
+publish = false
+
+[dependencies]
+
+[dev-dependencies]
+rand = { version = "0.10.0", default-features = false }
+rand_pcg = "0.10.1"
+
+[dev-dependencies.rug]
+version = "1.29.0"
+default-features = false
+features = ["float", "integer", "std"]
+
+[workspace]
+members = [
+    "generator",
+]
+
+[profile.dev]
+opt-level = 1

@@ -1,0 +1,15 @@
+[package]
+name = "generator"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.91"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+rayon = "1.11.0"
+
+[dependencies.rug]
+version = "1.29.0"
+default-features = false
+features = ["float", "integer", "std"]

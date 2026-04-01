@@ -1,0 +1,140 @@
+use std::io::{Read as _, Write as _};
+
+use super::AuxFloatKind;
+
+#[derive(Debug)]
+pub(super) enum SollyaError {
+    SpawnFailed(std::io::Error),
+    StdinWriteFailed(std::io::Error),
+    StdoutReadFailed(std::io::Error),
+    WaitFailed(std::io::Error),
+    ExitError(std::process::ExitStatus),
+}
+
+impl std::fmt::Display for SollyaError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SpawnFailed(e) => write!(f, "failed to spawn sollya: {e}"),
+            Self::StdinWriteFailed(e) => write!(f, "failed to write to sollya stdin: {e}"),
+            Self::StdoutReadFailed(e) => write!(f, "failed to read from sollya stdout: {e}"),
+            Self::WaitFailed(e) => write!(f, "failed to wait for sollya process to finish: {e}"),
+            Self::ExitError(status) => write!(f, "sollya process exited with status: {status}"),
+        }
+    }
+}
+
+fn run_sollya(input: &[u8]) -> Result<Vec<u8>, SollyaError> {
+    let mut child = std::process::Command::new("sollya")
+        .arg("--warnonstderr")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::inherit())
+        .spawn()
+        .map_err(SollyaError::SpawnFailed)?;
+
+    let mut child_stdin = child.stdin.take().unwrap();
+    let mut child_stdout = child.stdout.take().unwrap();
+
+    let stdout_reader = std::thread::spawn(move || {
+        let mut data = Vec::new();
+        child_stdout.read_to_end(&mut data)?;
+        Ok(data)
+    });
+    child_stdin
+        .write_all(input)
+        .map_err(SollyaError::StdinWriteFailed)?;
+    drop(child_stdin);
+
+    let stdout_data = stdout_reader
+        .join()
+        .expect("stdout reader thread panicked")
+        .map_err(SollyaError::StdoutReadFailed)?;
+
+    let exit_status = child.wait().map_err(SollyaError::WaitFailed)?;
+    if !exit_status.success() {
+        return Err(SollyaError::ExitError(exit_status));
+    }
+
+    Ok(stdout_data)
+}
+
+pub(super) fn run_and_render_remez(
+    fkind: AuxFloatKind,
+    func: &str,
+    range: (f64, f64),
+    poly_i: &[i32],
+    poly_i_print_off: i32,
+    coeff_prefix: &str,
+    out: &mut String,
+) {
+    let prec = match fkind {
+        AuxFloatKind::SfpM16E8 => 1024,
+        AuxFloatKind::SfpM32E16 => 1024,
+        AuxFloatKind::SfpM64E16 => 1024,
+        AuxFloatKind::SfpM128E16 => 1536,
+        AuxFloatKind::SfpM192E16 => 2304,
+    };
+    let code = gen_remez_code(prec, func, range, poly_i);
+    let result = run_sollya(&code).unwrap();
+
+    let mut lines = result.split(|&c| c == b'\n');
+    let first_line = lines.next().unwrap();
+    assert_eq!(
+        first_line,
+        format!("The precision has been set to {prec} bits.").as_bytes(),
+    );
+
+    let err_line = lines.next().unwrap();
+    let err = parse_f64(err_line);
+    eprintln!("error = {err:e} = 2^({})", err.log2());
+
+    for &i in poly_i.iter() {
+        let coeff_line = lines.next().unwrap();
+        let coeff_value = parse_rug_float(coeff_line, fkind.prec());
+        let coeff_name = format!("{coeff_prefix}{}", i + poly_i_print_off);
+        super::render_aux_const(fkind, &coeff_name, coeff_value, out);
+    }
+}
+
+fn gen_remez_code(prec: u32, func: &str, range: (f64, f64), poly_i: &[i32]) -> Vec<u8> {
+    let mut code = Vec::new();
+    writeln!(code, "prec = {prec};").unwrap();
+    code.extend(b"f = ");
+    code.extend(func.as_bytes());
+    code.extend(b";\n");
+
+    code.extend(b"p = remez(f, [|");
+    let mut first = true;
+    for &i in poly_i.iter() {
+        if !first {
+            code.extend(b", ");
+        }
+        first = false;
+        write!(code, "{i}").unwrap();
+    }
+    writeln!(code, "|], [{}, {}]);", range.0, range.1).unwrap();
+
+    writeln!(
+        code,
+        "print(dirtyinfnorm(p - f, [{}, {}]));",
+        range.0, range.1,
+    )
+    .unwrap();
+
+    for &i in poly_i.iter() {
+        writeln!(code, "print(coeff(p, {i}));").unwrap();
+    }
+    code.extend(b"quit;\n");
+
+    code
+}
+
+fn parse_f64(s: &[u8]) -> f64 {
+    let s = std::str::from_utf8(s).unwrap();
+    s.parse().unwrap()
+}
+
+fn parse_rug_float(s: &[u8], prec: u32) -> rug::Float {
+    let s = std::str::from_utf8(s).unwrap();
+    rug::Float::with_val(prec, rug::Float::parse(s).unwrap())
+}
