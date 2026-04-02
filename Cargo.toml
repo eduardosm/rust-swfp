@@ -9,6 +9,7 @@ repository = "https://github.com/eduardosm/rust-swfp"
 license = "MIT OR Apache-2.0"
 keywords = ["float", "floating-point", "math", "soft-float"]
 categories = ["mathematics", "no-std", "science"]
+exclude = ["/.github", ".gitignore", "/ci", "/test-data"]
 publish = true
 
 [dependencies]
