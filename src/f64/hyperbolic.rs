@@ -8,25 +8,21 @@ const LOG2_E: SfpM128E16 = Sfp::newp(0, 0xB8AA3B295C17F0BBBE87FED0691D3E89); // 
 const LN_2: SfpM128E16 = Sfp::newp(-1, 0xB17217F7D1CF79ABC9E3B39803F2F6AF); // 6.9314718055994530941723212145817656808e-1
 
 impl crate::generic::Hyperbolic for F64 {
-    #[inline]
     fn sinh_finite(x: Self) -> Self {
         let (sinh, _) = sinh_cosh_inner(x);
         Self(sinh.to_ieee_float())
     }
 
-    #[inline]
     fn cosh_finite(x: Self) -> Self {
         let (_, cosh) = sinh_cosh_inner(x);
         Self(cosh.to_ieee_float())
     }
 
-    #[inline]
     fn sinh_cosh_finite(x: Self) -> (Self, Self) {
         let (sinh, cosh) = sinh_cosh_inner(x);
         (Self(sinh.to_ieee_float()), Self(cosh.to_ieee_float()))
     }
 
-    #[inline]
     fn tanh_finite(x: Self) -> Self {
         // Very hard to round case
         if x.abs().bitwise_eq(Self::from_bits(0x3E9E0000000000E1)) {

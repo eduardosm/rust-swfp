@@ -10,7 +10,6 @@ const LN_2: SfpM32E16 = Sfp::newp(-1, 0xB17217F8); // 6.93147181e-1
 const LN_PI: SfpM32E16 = Sfp::newp(0, 0x92868247); // 1.14472989e0
 
 impl crate::generic::Gamma for F16 {
-    #[inline]
     fn gamma_finite(x: Self) -> Self {
         if x >= Self::from_int(10) {
             // Overflow
@@ -90,7 +89,6 @@ impl crate::generic::Gamma for F16 {
         Self(y.to_ieee_float())
     }
 
-    #[inline]
     fn ln_gamma_finite(x: Self) -> (Self, i8) {
         fn ln(x: SfpM32E16) -> SfpM32E16 {
             // GENERATE: ln_1p_poly SfpM32E16 3 -0.0001 0.0625

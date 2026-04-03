@@ -7,14 +7,12 @@ const LN_2: SfpM64E16 = Sfp::newp(-1, 0xB17217F7D1CF79AC); // 6.9314718055994530
 const LOG2_E: SfpM64E16 = Sfp::newp(0, 0xB8AA3B295C17F0BC); // 1.442695040888963407e0
 
 impl crate::generic::Pow for F16 {
-    #[inline]
     fn pow_finite(x: Self, y: Self, sign: bool) -> Self {
         let x = SfpM64E16::from_ieee_float(x.0);
         let y = SfpM64E16::from_ieee_float(y.0);
         pow_core(x, y, sign)
     }
 
-    #[inline]
     fn powi_finite(x: Self, y: i32) -> Self {
         let x = SfpM64E16::from_ieee_float(x.0);
         let sign = x.sign() && (y & 1) != 0;
@@ -23,7 +21,6 @@ impl crate::generic::Pow for F16 {
     }
 }
 
-#[inline]
 fn pow_core(x: SfpM64E16, y: SfpM64E16, sign: bool) -> F16 {
     #[inline]
     fn ln(x: SfpM64E16) -> SfpM64E16 {

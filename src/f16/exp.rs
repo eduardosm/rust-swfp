@@ -10,7 +10,6 @@ const LOG10_2: SfpM32E16 = Sfp::newp(-2, 0x9A209A85); // 3.01029996e-1
 const LN_10: SfpM32E16 = Sfp::newp(1, 0x935D8DDE); // 2.30258509e0
 
 impl crate::generic::Exp for F16 {
-    #[inline]
     fn exp_finite(x: Self) -> Self {
         let x = SfpM32E16::from_ieee_float(x.0);
 
@@ -50,7 +49,6 @@ impl crate::generic::Exp for F16 {
         Self(y.to_ieee_float())
     }
 
-    #[inline]
     fn exp_m1_finite(x: Self) -> Self {
         let x = SfpM32E16::from_ieee_float(x.0);
 
@@ -90,7 +88,6 @@ impl crate::generic::Exp for F16 {
         Self(y.to_ieee_float())
     }
 
-    #[inline]
     fn exp2_finite(x: Self) -> Self {
         let x = SfpM32E16::from_ieee_float(x.0);
 
@@ -130,7 +127,6 @@ impl crate::generic::Exp for F16 {
         Self(y.to_ieee_float())
     }
 
-    #[inline]
     fn exp2_m1_finite(x: Self) -> Self {
         let x = SfpM32E16::from_ieee_float(x.0);
 
@@ -170,7 +166,6 @@ impl crate::generic::Exp for F16 {
         Self(y.to_ieee_float())
     }
 
-    #[inline]
     fn exp10_finite(x: Self) -> Self {
         let x = SfpM32E16::from_ieee_float(x.0);
 
@@ -210,7 +205,6 @@ impl crate::generic::Exp for F16 {
         Self(y.to_ieee_float())
     }
 
-    #[inline]
     fn exp10_m1_finite(x: Self) -> Self {
         let x = SfpM32E16::from_ieee_float(x.0);
 
