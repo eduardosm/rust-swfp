@@ -6,7 +6,6 @@ use crate::simple_fp::{Sfp, SfpM32E16};
 const LN_2: SfpM32E16 = Sfp::newp(-1, 0xB17217F8); // 6.93147181e-1
 
 impl crate::generic::InvHyperbolic for F16 {
-    #[inline]
     fn asinh_finite(x: Self) -> Self {
         #[inline]
         fn ln(x: SfpM32E16) -> SfpM32E16 {
@@ -37,7 +36,6 @@ impl crate::generic::InvHyperbolic for F16 {
         Self(t2.set_sign(x.sign()).to_ieee_float())
     }
 
-    #[inline]
     fn acosh_finite(x: Self) -> Self {
         #[inline]
         fn ln(x: SfpM32E16) -> SfpM32E16 {
@@ -64,7 +62,6 @@ impl crate::generic::InvHyperbolic for F16 {
         Self(t2.to_ieee_float())
     }
 
-    #[inline]
     fn atanh_finite(x: Self) -> Self {
         #[inline]
         fn ln(x: SfpM32E16) -> SfpM32E16 {

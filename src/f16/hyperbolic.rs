@@ -7,25 +7,21 @@ const LOG2_E: SfpM32E16 = Sfp::newp(0, 0xB8AA3B29); // 1.44269504e0
 const LN_2: SfpM32E16 = Sfp::newp(-1, 0xB17217F8); // 6.93147181e-1
 
 impl crate::generic::Hyperbolic for F16 {
-    #[inline]
     fn sinh_finite(x: Self) -> Self {
         let (sinh, _) = sinh_cosh_inner(x);
         Self(sinh.to_ieee_float())
     }
 
-    #[inline]
     fn cosh_finite(x: Self) -> Self {
         let (_, cosh) = sinh_cosh_inner(x);
         Self(cosh.to_ieee_float())
     }
 
-    #[inline]
     fn sinh_cosh_finite(x: Self) -> (Self, Self) {
         let (sinh, cosh) = sinh_cosh_inner(x);
         (Self(sinh.to_ieee_float()), Self(cosh.to_ieee_float()))
     }
 
-    #[inline]
     fn tanh_finite(x: Self) -> Self {
         let (sinh, cosh) = sinh_cosh_inner(x);
         if sinh.is_infinite() && cosh.is_infinite() {

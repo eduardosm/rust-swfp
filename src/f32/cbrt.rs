@@ -9,7 +9,6 @@ const INV_CBRT_2: SfpM32E16 = Sfp::newp(-1, 0xCB2FF52A); // 7.93700526e-1
 const INV_CBRT_4: SfpM32E16 = Sfp::newp(-1, 0xA14517CC); // 6.29960525e-1
 
 impl crate::generic::Cbrt for F32 {
-    #[inline]
     fn cbrt_finite(x: Self) -> Self {
         let x = SfpM32E16::from_ieee_float(x.0);
 

@@ -9,7 +9,6 @@ const LOG10_E: SfpM32E16 = Sfp::newp(-2, 0xDE5BD8A9); // 4.34294482e-1
 const LOG10_2: SfpM32E16 = Sfp::newp(-2, 0x9A209A85); // 3.01029996e-1
 
 impl crate::generic::Log for F16 {
-    #[inline]
     fn ln_finite(x: Self) -> Self {
         let x = SfpM32E16::from_ieee_float(x.0);
 
@@ -27,7 +26,6 @@ impl crate::generic::Log for F16 {
         Self(y.to_ieee_float())
     }
 
-    #[inline]
     fn ln_1p_finite(x: Self) -> Self {
         let x = SfpM32E16::from_ieee_float(x.0);
         let y = if x.exponent() <= -5 {
@@ -54,7 +52,6 @@ impl crate::generic::Log for F16 {
         Self(y.to_ieee_float())
     }
 
-    #[inline]
     fn log2_finite(x: Self) -> Self {
         let x = SfpM32E16::from_ieee_float(x.0);
 
@@ -71,7 +68,6 @@ impl crate::generic::Log for F16 {
         Self(y.to_ieee_float())
     }
 
-    #[inline]
     fn log2_1p_finite(x: Self) -> Self {
         let x = SfpM32E16::from_ieee_float(x.0);
         let y = if x.exponent() <= -5 {
@@ -99,7 +95,6 @@ impl crate::generic::Log for F16 {
         Self(y.to_ieee_float())
     }
 
-    #[inline]
     fn log10_finite(x: Self) -> Self {
         let x = SfpM32E16::from_ieee_float(x.0);
 
@@ -116,7 +111,6 @@ impl crate::generic::Log for F16 {
         Self(y.to_ieee_float())
     }
 
-    #[inline]
     fn log10_1p_finite(x: Self) -> Self {
         let x = SfpM32E16::from_ieee_float(x.0);
         let y = if x.exponent() <= -5 {

@@ -7,14 +7,12 @@ const LN_2: SfpM128E16 = Sfp::newp(-1, 0xB17217F7D1CF79ABC9E3B39803F2F6AF); // 6
 const LOG2_E: SfpM128E16 = Sfp::newp(0, 0xB8AA3B295C17F0BBBE87FED0691D3E89); // 1.4426950408889634073599246810018921374e0
 
 impl crate::generic::Pow for F32 {
-    #[inline]
     fn pow_finite(x: Self, y: Self, sign: bool) -> Self {
         let x = SfpM128E16::from_ieee_float(x.0);
         let y = SfpM128E16::from_ieee_float(y.0);
         pow_core(x, y, sign)
     }
 
-    #[inline]
     fn powi_finite(x: Self, y: i32) -> Self {
         let x = SfpM128E16::from_ieee_float(x.0);
         let sign = x.sign() && (y & 1) != 0;

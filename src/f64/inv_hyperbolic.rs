@@ -7,7 +7,6 @@ use crate::traits::FloatImpExt as _;
 const LN_2: SfpM128E16 = Sfp::newp(-1, 0xB17217F7D1CF79ABC9E3B39803F2F6AF); // 6.9314718055994530941723212145817656808e-1
 
 impl crate::generic::InvHyperbolic for F64 {
-    #[inline]
     fn asinh_finite(x: Self) -> Self {
         #[inline]
         fn ln(x: SfpM128E16) -> SfpM128E16 {
@@ -78,7 +77,6 @@ impl crate::generic::InvHyperbolic for F64 {
         Self(r.to_ieee_float())
     }
 
-    #[inline]
     fn acosh_finite(x: Self) -> Self {
         #[inline]
         fn ln(x: SfpM128E16) -> SfpM128E16 {
@@ -120,7 +118,6 @@ impl crate::generic::InvHyperbolic for F64 {
         Self(t2.to_ieee_float())
     }
 
-    #[inline]
     fn atanh_finite(x: Self) -> Self {
         #[inline]
         fn ln(x: SfpM128E16) -> SfpM128E16 {

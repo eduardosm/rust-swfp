@@ -9,7 +9,6 @@ const INV_CBRT_2: SfpM64E16 = Sfp::newp(-1, 0xCB2FF529EB71E416); // 7.9370052598
 const INV_CBRT_4: SfpM64E16 = Sfp::newp(-1, 0xA14517CC6B945711); // 6.299605249474365824e-1
 
 impl crate::generic::Cbrt for F64 {
-    #[inline]
     fn cbrt_finite(x: Self) -> Self {
         let x = SfpM64E16::from_ieee_float(x.0);
 

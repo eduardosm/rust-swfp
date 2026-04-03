@@ -18,28 +18,24 @@ impl crate::generic::InvTrigonometric for F32 {
         Self(FRAC_PI_2.to_ieee_float())
     }
 
-    #[inline]
     fn asin_finite(x: Self) -> Self {
         let x = SfpM64E16::from_ieee_float(x.0);
         let r = asin_core(x);
         Self(r.to_ieee_float())
     }
 
-    #[inline]
     fn acos_finite(x: Self) -> Self {
         let x = SfpM64E16::from_ieee_float(x.0);
         let r = acos_core(x);
         Self(r.to_ieee_float())
     }
 
-    #[inline]
     fn atan_finite(x: Self) -> Self {
         let x = SfpM64E16::from_ieee_float(x.0);
         let r = atan_core(x);
         Self(r.to_ieee_float())
     }
 
-    #[inline]
     fn atan2_finite(y: Self, x: Self) -> Self {
         let y = SfpM128E16::from_ieee_float(y.0);
         let x = SfpM128E16::from_ieee_float(x.0);
@@ -47,28 +43,24 @@ impl crate::generic::InvTrigonometric for F32 {
         Self(r.to_ieee_float())
     }
 
-    #[inline]
     fn asind_finite(x: Self) -> Self {
         let x = SfpM64E16::from_ieee_float(x.0);
         let r = asin_core(x) * FRAC_180_PI;
         Self(r.to_ieee_float())
     }
 
-    #[inline]
     fn acosd_finite(x: Self) -> Self {
         let x = SfpM64E16::from_ieee_float(x.0);
         let r = acos_core(x) * FRAC_180_PI;
         Self(r.to_ieee_float())
     }
 
-    #[inline]
     fn atand_finite(x: Self) -> Self {
         let x = SfpM64E16::from_ieee_float(x.0);
         let r = atan_core(x) * FRAC_180_PI;
         Self(r.to_ieee_float())
     }
 
-    #[inline]
     fn atan2d_finite(y: Self, x: Self) -> Self {
         // GENERATE: consts SfpM128E16 FRAC_180_PI
         const FRAC_180_PI: SfpM128E16 = Sfp::newp(5, 0xE52EE0D31E0FBDC30A97537F40D257D7); // 5.7295779513082320876798154814105170332e1
@@ -79,28 +71,24 @@ impl crate::generic::InvTrigonometric for F32 {
         Self(r.to_ieee_float())
     }
 
-    #[inline]
     fn asinpi_finite(x: Self) -> Self {
         let x = SfpM64E16::from_ieee_float(x.0);
         let r = asin_core(x) * FRAC_1_PI;
         Self(r.to_ieee_float())
     }
 
-    #[inline]
     fn acospi_finite(x: Self) -> Self {
         let x = SfpM64E16::from_ieee_float(x.0);
         let r = acos_core(x) * FRAC_1_PI;
         Self(r.to_ieee_float())
     }
 
-    #[inline]
     fn atanpi_finite(x: Self) -> Self {
         let x = SfpM64E16::from_ieee_float(x.0);
         let r = atan_core(x) * FRAC_1_PI;
         Self(r.to_ieee_float())
     }
 
-    #[inline]
     fn atan2pi_finite(y: Self, x: Self) -> Self {
         // GENERATE: consts SfpM128E16 FRAC_1_PI
         const FRAC_1_PI: SfpM128E16 = Sfp::newp(-2, 0xA2F9836E4E441529FC2757D1F534DDC1); // 3.1830988618379067153776752674502872407e-1

@@ -8,7 +8,6 @@ const FRAC_PI_4: SfpM32E16 = Sfp::newp(-1, 0xC90FDAA2); // 7.85398163e-1
 const FRAC_PI_180: SfpM32E16 = Sfp::newp(-6, 0x8EFA3513); // 1.74532925e-2
 
 impl crate::generic::Trigonometric for F16 {
-    #[inline]
     fn sin_finite(x: Self) -> Self {
         let (n, y) = reduce_pi_2(x);
         match n {
@@ -20,7 +19,6 @@ impl crate::generic::Trigonometric for F16 {
         }
     }
 
-    #[inline]
     fn cos_finite(x: Self) -> Self {
         let (n, y) = reduce_pi_2(x);
         match n {
@@ -32,7 +30,6 @@ impl crate::generic::Trigonometric for F16 {
         }
     }
 
-    #[inline]
     fn sin_cos_finite(x: Self) -> (Self, Self) {
         let (n, y) = reduce_pi_2(x);
         let sin = sin_core(y);
@@ -47,7 +44,6 @@ impl crate::generic::Trigonometric for F16 {
         (sin, cos)
     }
 
-    #[inline]
     fn tan_finite(x: Self) -> Self {
         let (n, y) = reduce_pi_2(x);
         tan_core(y, (n & 1) != 0)
@@ -80,25 +76,21 @@ impl crate::generic::Trigonometric for F16 {
         }
     }
 
-    #[inline]
     fn sind_reduced(x: Self) -> Self {
         let y = SfpM32E16::from_ieee_float(x.0) * FRAC_PI_180;
         sin_core(y)
     }
 
-    #[inline]
     fn cosd_reduced(x: Self) -> Self {
         let y = SfpM32E16::from_ieee_float(x.0) * FRAC_PI_180;
         cos_core(y)
     }
 
-    #[inline]
     fn sind_cosd_reduced(x: Self) -> (Self, Self) {
         let y = SfpM32E16::from_ieee_float(x.0) * FRAC_PI_180;
         (sin_core(y), cos_core(y))
     }
 
-    #[inline]
     fn tand_reduced(x: Self, inv: bool) -> Self {
         if !inv && x.abs().bitwise_eq(Self::from_bits(0x3ADB)) {
             // Hard to round case
@@ -109,25 +101,21 @@ impl crate::generic::Trigonometric for F16 {
         tan_core(y, inv)
     }
 
-    #[inline]
     fn sinpi_reduced(x: Self) -> Self {
         let y = SfpM32E16::from_ieee_float(x.0) * PI;
         sin_core(y)
     }
 
-    #[inline]
     fn cospi_reduced(x: Self) -> Self {
         let y = SfpM32E16::from_ieee_float(x.0) * PI;
         cos_core(y)
     }
 
-    #[inline]
     fn sinpi_cospi_reduced(x: Self) -> (Self, Self) {
         let y = SfpM32E16::from_ieee_float(x.0) * PI;
         (sin_core(y), cos_core(y))
     }
 
-    #[inline]
     fn tanpi_reduced(x: Self, inv: bool) -> Self {
         if !inv && x.abs().bitwise_eq(Self::from_bits(0x1CE0)) {
             // Hard to round case
