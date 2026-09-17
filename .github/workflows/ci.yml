@@ -31,7 +31,7 @@ jobs:
   lint-aux:
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install lint utilities
         run: sudo npm install -g markdownlint-cli@0.48.0 markdown-link-check@3.14.2
       - name: Install Rust
@@ -41,7 +41,7 @@ jobs:
   extract-changelog:
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install Rust
         run: ./ci/install-rust.sh stable --profile minimal
       - run: ./ci/extract-changelog.sh
@@ -55,7 +55,7 @@ jobs:
   rustfmt:
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install Rust
         run: ./ci/install-rust.sh stable --profile minimal -c rustfmt
       - run: cargo fmt --all -- --check
@@ -63,7 +63,7 @@ jobs:
   clippy:
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install Rust
         run: ./ci/install-rust.sh stable --profile minimal -c clippy
       - run: ./ci/clippy.sh
@@ -76,7 +76,7 @@ jobs:
           - rust-version: msrv
           - rust-version: stable
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install Rust
         run: ./ci/install-rust.sh "${{ matrix.rust-version }}" --profile minimal
       - run: ./ci/build-and-test.sh
@@ -84,7 +84,7 @@ jobs:
   build-no_std:
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install Rust
         run: ./ci/install-rust.sh stable --profile minimal -t x86_64-unknown-none
       - run: ./ci/build-no_std.sh
@@ -92,7 +92,7 @@ jobs:
   check-generator:
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install Sollya
         run: |
           sudo apt-get update
@@ -109,7 +109,7 @@ jobs:
   package-crate:
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install Rust
         run: ./ci/install-rust.sh stable --profile minimal
       - run: ./ci/package-crate.sh
