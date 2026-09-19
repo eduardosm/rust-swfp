@@ -4,7 +4,7 @@ set -euo pipefail
 . ci/utils.sh
 
 begin_group "Install Julia packages"
-julia -e 'import Pkg; Pkg.add("Remez"); Pkg.add("SpecialFunctions")'
+julia -e 'import Pkg; Pkg.add(name="Remez", version="0.1.1"); Pkg.add("SpecialFunctions")'
 end_group
 
 begin_group "Fetch dependencies"
@@ -20,5 +20,5 @@ cargo build --frozen -p swfp
 end_group
 
 begin_group "Show diff"
-git diff
+git diff --exit-code
 end_group
