@@ -15,10 +15,6 @@ begin_group "Run generator"
 cargo run --frozen -p generator -- rt-data src
 end_group
 
-begin_group "Build after generation"
-cargo build --frozen -p swfp
-end_group
-
 begin_group "Show diff"
 git diff --exit-code
 end_group
