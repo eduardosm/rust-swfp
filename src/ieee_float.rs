@@ -1219,12 +1219,13 @@ impl<S: Semantics> IeeeFloat<S> {
         mut loss: RoundLoss,
         round: Round,
     ) -> (Self, FpStatus) {
-        debug_assert!(exp < S::Exp::MAX);
         debug_assert!(mant >= S::Mant::ONE << S::MANT_FRAC_BITS);
         debug_assert!(mant < S::Mant::ONE << S::PREC_BITS);
 
         if exp < S::min_subnormal_exp() - S::Exp::ONE {
             return (Self::make_underflow_value(sign, round), FpStatus::Underflow);
+        } else if exp > S::max_normal_exp() {
+            return (Self::make_overflow_value(sign, round), FpStatus::Overflow);
         }
 
         let mut shift = 0u32;

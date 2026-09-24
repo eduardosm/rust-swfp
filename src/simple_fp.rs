@@ -272,10 +272,7 @@ impl<M: traits::UInt, E: traits::SInt> Sfp<M, E> {
             return ieee_float::IeeeFloat::make_zero(self.s);
         }
 
-        // `IeeeFloat::round_and_classify` needs the exponent to
-        // be less than `MAX`.
-        let e = S::Exp::try_from(self.e).ok().filter(|&e| e < S::Exp::MAX);
-        let Some(e) = e else {
+        let Ok(e) = S::Exp::try_from(self.e) else {
             if self.e > E::ZERO {
                 return ieee_float::IeeeFloat::make_inf(self.s);
             } else {

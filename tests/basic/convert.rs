@@ -1,6 +1,9 @@
 use swfp::{Float, FloatConvertFrom, FpStatus};
 
-use crate::{ALL_ROUND_MODES, Loss, mk_f8e4m3b8nnz, mk_f8e4m3nao, mk_f8e5m2, mk_f16, mk_f32};
+use crate::{
+    ALL_ROUND_MODES, Loss, mk_f8e4m3b8nnz, mk_f8e4m3nao, mk_f8e5m2, mk_f16, mk_f32, mk_f64,
+    mk_f128, mk_x87f80,
+};
 
 fn check_convert_round<F1, F2>(
     orig_value: F1,
@@ -359,6 +362,70 @@ fn test_convert_f8e4m3nao_to_f16() {
                     check_convert_lossless(mk_f8e4m3nao(s, e, m), mk_f16(s, e, u16::from(m) << 7));
                 }
             }
+        }
+    }
+}
+
+#[test]
+fn test_convert_max_exp_overflow() {
+    fn check_overflow_to_small_formats<F>(value: F, sign: bool)
+    where
+        F: Float<Bits: std::fmt::Debug>
+            + FloatConvertFrom<swfp::F16>
+            + FloatConvertFrom<swfp::F8E5M2>
+            + FloatConvertFrom<swfp::F8E4M3B8Nnz>
+            + FloatConvertFrom<swfp::F8E4M3Nao>,
+        swfp::F16: FloatConvertFrom<F>,
+        swfp::F8E5M2: FloatConvertFrom<F>,
+        swfp::F8E4M3B8Nnz: FloatConvertFrom<F>,
+        swfp::F8E4M3Nao: FloatConvertFrom<F>,
+    {
+        check_convert_round(
+            value,
+            mk_f16(sign, 15, 0x3FF),
+            mk_f16(sign, 16, 0),
+            sign,
+            Loss::Overflow,
+        );
+        check_convert_round(
+            value,
+            mk_f8e5m2(sign, 15, 0b11),
+            mk_f8e5m2(sign, 16, 0),
+            sign,
+            Loss::Overflow,
+        );
+        check_convert_round(
+            value,
+            mk_f8e4m3b8nnz(sign, 7, 0b111),
+            // This format has no infinity and encodes NaN as negative zero.
+            mk_f8e4m3b8nnz(true, -8, 0),
+            sign,
+            Loss::Overflow,
+        );
+        check_convert_round(
+            value,
+            mk_f8e4m3nao(sign, 8, 0b110),
+            // This format has no infinity and encodes NaN as all ones.
+            mk_f8e4m3nao(sign, 8, 0b111),
+            sign,
+            Loss::Overflow,
+        );
+    }
+
+    for s in [false, true] {
+        // Both a mantissa that is rounded down and one that carries into the
+        // next binade, which is what increments the exponent.
+        for m in [0, (1 << 23) - 1] {
+            check_overflow_to_small_formats(mk_f32(s, 127, m), s);
+        }
+        for m in [0, (1 << 52) - 1] {
+            check_overflow_to_small_formats(mk_f64(s, 127, m), s);
+        }
+        for m in [0, (1 << 112) - 1] {
+            check_overflow_to_small_formats(mk_f128(s, 127, m), s);
+        }
+        for m in [0, (1 << 63) - 1] {
+            check_overflow_to_small_formats(mk_x87f80(s, 127, true, m), s);
         }
     }
 }
