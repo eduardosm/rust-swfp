@@ -97,15 +97,12 @@ fn test_convert_to_self() {
         for round in round_modes {
             let (new_value, status) = swfp::F16::convert_from_ex(value, round);
             let new_bits = new_value.to_bits();
-            let expected_status;
-            let expected_bits;
-            if value.is_nan() && bits & 0x0200 == 0 {
-                expected_status = FpStatus::Invalid;
-                expected_bits = bits | 0x0200;
+
+            let (expected_status, expected_bits) = if value.is_nan() && bits & 0x0200 == 0 {
+                (FpStatus::Invalid, bits | 0x0200)
             } else {
-                expected_status = FpStatus::Ok;
-                expected_bits = bits;
-            }
+                (FpStatus::Ok, bits)
+            };
             assert_eq!(status, expected_status);
             if new_bits != expected_bits {
                 panic!("0x{new_bits:04X} != 0x{expected_bits:04X}");

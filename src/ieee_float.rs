@@ -270,15 +270,18 @@ impl<S: Semantics> IeeeFloat<S> {
         }
 
         let raw_sign = S::Bits::from(self.sign);
-        let raw_mant;
-        let raw_exp;
-        if self.category == FpCategory::Subnormal {
+
+        let (raw_exp, raw_mant) = if self.category == FpCategory::Subnormal {
             let shift: u32 = (S::min_normal_exp() - self.exp).cast_into();
-            raw_exp = S::Bits::cast_from(S::min_normal_exp() - S::Exp::ONE + S::exp_bias());
-            raw_mant = S::Bits::from(self.mant >> shift);
+            (
+                S::Bits::cast_from(S::min_normal_exp() - S::Exp::ONE + S::exp_bias()),
+                S::Bits::from(self.mant >> shift),
+            )
         } else {
-            raw_exp = S::Bits::cast_from(self.exp + S::exp_bias());
-            raw_mant = S::Bits::from(self.mant) & S::mant_mask();
+            (
+                S::Bits::cast_from(self.exp + S::exp_bias()),
+                S::Bits::from(self.mant) & S::mant_mask(),
+            )
         };
         (raw_sign << S::SIGN_SHIFT) | (raw_exp << S::EXP_SHIFT) | raw_mant
     }
