@@ -1,6 +1,6 @@
 [package]
 name = "swfp"
-version = "0.1.0"
+version = "0.1.1-pre"
 authors = ["Eduardo Sánchez Muñoz <eduardosm-dev@e64.io>"]
 edition = "2024"
 rust-version = "1.91"
@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 keywords = ["float", "floating-point", "math", "soft-float"]
 categories = ["mathematics", "no-std", "science"]
 exclude = ["/.github", ".gitignore", "/ci", "/test-data"]
-publish = true
+publish = false
 
 [dependencies]
 

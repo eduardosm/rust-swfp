@@ -4,7 +4,8 @@ use swfp::{Float as _, FloatConvertFrom, FpStatus, Round};
 
 use crate::{
     ALL_ROUND_MODES, Loss, check_category, check_compare, check_from_str_exact,
-    check_from_str_round, check_to_uint_exact, mk_f16, test_from_str_specials,
+    check_from_str_round, check_from_uint_round, check_scalbn_round, check_to_uint_exact, mk_f16,
+    test_from_str_specials,
 };
 
 #[test]
@@ -258,5 +259,30 @@ fn test_mul_div() {
                 assert_eq!(r.to_bits(), expected_r.to_bits());
             }
         }
+    }
+}
+
+#[test]
+fn test_from_uint_overflow() {
+    for value in [1u128 << 127, u128::MAX] {
+        check_from_uint_round(
+            value,
+            mk_f16(false, 15, 0x3FF),
+            mk_f16(false, 16, 0),
+            Loss::Overflow,
+        );
+    }
+}
+
+#[test]
+fn test_scalbn_overflow() {
+    for s in [false, true] {
+        check_scalbn_round(
+            mk_f16(s, 0, 0),
+            127,
+            mk_f16(s, 15, 0x3FF),
+            mk_f16(s, 16, 0),
+            Loss::Overflow,
+        );
     }
 }
