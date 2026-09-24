@@ -3,7 +3,8 @@ use std::num::FpCategory;
 use swfp::{Float as _, FloatConvertFrom, FpStatus, Round};
 
 use crate::{
-    ALL_ROUND_MODES, check_category, check_compare, mk_f8e4m3b8nnz, test_from_str_specials,
+    ALL_ROUND_MODES, Loss, check_category, check_compare, check_round_int_exact,
+    check_round_int_round, mk_f8e4m3b8nnz, test_from_str_specials,
 };
 
 #[test]
@@ -168,5 +169,28 @@ fn test_binary_op_exhaustive() {
                 assert_eq!(r.to_bits(), expected_r.to_bits());
             }
         }
+    }
+}
+
+#[test]
+fn test_round_int() {
+    check_round_int_exact(swfp::F8E4M3B8Nnz::NAN);
+    check_round_int_exact(swfp::F8E4M3B8Nnz::INFINITY);
+    check_round_int_exact(-swfp::F8E4M3B8Nnz::INFINITY);
+    check_round_int_exact(swfp::F8E4M3B8Nnz::ZERO);
+    check_round_int_exact(-swfp::F8E4M3B8Nnz::ZERO);
+
+    for s in [false, true] {
+        check_round_int_exact(mk_f8e4m3b8nnz(s, 0, 0));
+        check_round_int_exact(mk_f8e4m3b8nnz(s, 2, 0b100));
+        check_round_int_exact(mk_f8e4m3b8nnz(s, 3, 0b111));
+
+        let zero = mk_f8e4m3b8nnz(false, -8, 0);
+        let one = mk_f8e4m3b8nnz(s, 0, 0);
+        check_round_int_round(mk_f8e4m3b8nnz(s, -8, 1), zero, one, Loss::HalfDown);
+        check_round_int_round(mk_f8e4m3b8nnz(s, -2, 0), zero, one, Loss::HalfDown);
+        check_round_int_round(mk_f8e4m3b8nnz(s, -1, 0), zero, one, Loss::HalfEven);
+        check_round_int_round(mk_f8e4m3b8nnz(s, -1, 0b100), zero, one, Loss::HalfUp);
+        check_round_int_round(mk_f8e4m3b8nnz(s, -1, 0b111), zero, one, Loss::HalfUp);
     }
 }

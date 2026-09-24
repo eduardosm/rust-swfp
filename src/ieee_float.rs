@@ -583,6 +583,12 @@ impl<S: Semantics> IeeeFloat<S> {
                     let shift: u32 = (S::Exp::cast_from(S::MANT_FRAC_BITS) - self.exp).cast_into();
                     let loss = RoundLoss::from_shift(self.mant, shift);
                     let mant = Self::apply_round(self.sign, self.mant >> shift, loss, round);
+                    if mant == S::Mant::ZERO {
+                        // Only reachable when `self.exp` is -1, where every
+                        // mantissa bit is shifted out, so the loss is never zero.
+                        debug_assert_ne!(loss, RoundLoss::Zero);
+                        return (Self::make_zero(self.sign), FpStatus::Inexact);
+                    }
                     let mut exp = self.exp;
                     let mut mant = mant << shift;
                     if mant >= S::Mant::ONE << S::PREC_BITS {

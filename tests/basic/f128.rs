@@ -3,8 +3,8 @@ use std::num::FpCategory;
 use swfp::{Float as _, FloatConvertFrom, FpStatus};
 
 use crate::{
-    ALL_ROUND_MODES, Loss, check_category, check_from_str_exact, check_from_str_round, mk_f128,
-    test_from_str_specials,
+    ALL_ROUND_MODES, Loss, check_category, check_from_str_exact, check_from_str_round,
+    check_round_int_exact, check_round_int_round, mk_f128, test_from_str_specials,
 };
 
 #[test]
@@ -238,4 +238,27 @@ fn test_fmt_exp() {
         "1.1897314953572317650857593266280069e4932"
     );
     assert_eq!(format!("{v:.10e}"), "1.1897314954e4932");
+}
+
+#[test]
+fn test_round_int() {
+    check_round_int_exact(swfp::F128::NAN);
+    check_round_int_exact(swfp::F128::INFINITY);
+    check_round_int_exact(-swfp::F128::INFINITY);
+    check_round_int_exact(swfp::F128::ZERO);
+    check_round_int_exact(-swfp::F128::ZERO);
+
+    for s in [false, true] {
+        check_round_int_exact(mk_f128(s, 0, 0));
+        check_round_int_exact(mk_f128(s, 2, 1 << 111));
+        check_round_int_exact(mk_f128(s, 112, (1 << 112) - 1));
+
+        let zero = mk_f128(s, -16383, 0);
+        let one = mk_f128(s, 0, 0);
+        check_round_int_round(mk_f128(s, -16383, 1), zero, one, Loss::HalfDown);
+        check_round_int_round(mk_f128(s, -2, 0), zero, one, Loss::HalfDown);
+        check_round_int_round(mk_f128(s, -1, 0), zero, one, Loss::HalfEven);
+        check_round_int_round(mk_f128(s, -1, 1 << 111), zero, one, Loss::HalfUp);
+        check_round_int_round(mk_f128(s, -1, (1 << 112) - 1), zero, one, Loss::HalfUp);
+    }
 }
