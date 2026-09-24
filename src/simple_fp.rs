@@ -280,15 +280,17 @@ impl<M: traits::UInt, E: traits::SInt> Sfp<M, E> {
             }
         };
 
-        let mant;
-        let loss;
-        if S::PREC_BITS >= M::BITS {
-            mant = S::Mant::cast_from(self.m) << (S::PREC_BITS - M::BITS);
-            loss = RoundLoss::Zero;
+        let (mant, loss) = if S::PREC_BITS >= M::BITS {
+            (
+                S::Mant::cast_from(self.m) << (S::PREC_BITS - M::BITS),
+                RoundLoss::Zero,
+            )
         } else {
             let shift = M::BITS - S::PREC_BITS;
-            mant = S::Mant::cast_from(self.m >> shift);
-            loss = RoundLoss::from_shift(self.m, shift);
+            (
+                S::Mant::cast_from(self.m >> shift),
+                RoundLoss::from_shift(self.m, shift),
+            )
         };
         ieee_float::IeeeFloat::round_and_classify(
             self.s,
