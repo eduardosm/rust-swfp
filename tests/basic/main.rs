@@ -661,10 +661,13 @@ fn check_round_int_round<F>(value: F, expected_tz: F, expected_az: F, loss: Loss
 where
     F: Float<Bits: std::fmt::Debug>,
 {
-    check_float_round(
-        |round| value.round_int_ex(round),
-        expected_tz,
-        expected_az,
+    check_round(
+        |round| {
+            let (value, status) = value.round_int_ex(round);
+            (value.to_bits(), status)
+        },
+        (expected_tz.to_bits(), FpStatus::Inexact),
+        (expected_az.to_bits(), FpStatus::Inexact),
         value.is_sign_negative(),
         loss,
     );

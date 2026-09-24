@@ -859,6 +859,14 @@ fn test_round_int() {
             mk_f32(s, 19, 0x000100),
             Loss::HalfDown,
         );
+
+        let zero = mk_f32(s, -127, 0);
+        let one = mk_f32(s, 0, 0);
+        check_round_int_round(mk_f32(s, -127, 1), zero, one, Loss::HalfDown);
+        check_round_int_round(mk_f32(s, -2, 0), zero, one, Loss::HalfDown);
+        check_round_int_round(mk_f32(s, -1, 0), zero, one, Loss::HalfEven);
+        check_round_int_round(mk_f32(s, -1, 1 << 22), zero, one, Loss::HalfUp);
+        check_round_int_round(mk_f32(s, -1, 0x7FFFFF), zero, one, Loss::HalfUp);
     }
 }
 

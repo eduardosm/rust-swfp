@@ -4,8 +4,8 @@ use swfp::{Float as _, FloatConvertFrom, FpStatus, Round};
 
 use crate::{
     ALL_ROUND_MODES, Loss, check_category, check_compare, check_from_str_exact,
-    check_from_str_round, check_from_uint_round, check_scalbn_round, check_to_uint_exact, mk_f16,
-    test_from_str_specials,
+    check_from_str_round, check_from_uint_round, check_round_int_exact, check_round_int_round,
+    check_scalbn_round, check_to_uint_exact, mk_f16, test_from_str_specials,
 };
 
 #[test]
@@ -281,5 +281,28 @@ fn test_scalbn_overflow() {
             mk_f16(s, 16, 0),
             Loss::Overflow,
         );
+    }
+}
+
+#[test]
+fn test_round_int() {
+    check_round_int_exact(swfp::F16::NAN);
+    check_round_int_exact(swfp::F16::INFINITY);
+    check_round_int_exact(-swfp::F16::INFINITY);
+    check_round_int_exact(swfp::F16::ZERO);
+    check_round_int_exact(-swfp::F16::ZERO);
+
+    for s in [false, true] {
+        check_round_int_exact(mk_f16(s, 0, 0));
+        check_round_int_exact(mk_f16(s, 2, 1 << 9));
+        check_round_int_exact(mk_f16(s, 10, 0x3FF));
+
+        let zero = mk_f16(s, -15, 0);
+        let one = mk_f16(s, 0, 0);
+        check_round_int_round(mk_f16(s, -15, 1), zero, one, Loss::HalfDown);
+        check_round_int_round(mk_f16(s, -2, 0), zero, one, Loss::HalfDown);
+        check_round_int_round(mk_f16(s, -1, 0), zero, one, Loss::HalfEven);
+        check_round_int_round(mk_f16(s, -1, 1 << 9), zero, one, Loss::HalfUp);
+        check_round_int_round(mk_f16(s, -1, 0x3FF), zero, one, Loss::HalfUp);
     }
 }

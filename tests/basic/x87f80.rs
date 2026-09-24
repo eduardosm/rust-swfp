@@ -3,8 +3,8 @@ use core::num::FpCategory;
 use swfp::Float as _;
 
 use crate::{
-    Loss, check_category, check_compare, check_from_str_exact, check_from_str_round, mk_x87f80,
-    test_from_str_specials,
+    Loss, check_category, check_compare, check_from_str_exact, check_from_str_round,
+    check_round_int_exact, check_round_int_round, mk_x87f80, test_from_str_specials,
 };
 
 #[test]
@@ -251,4 +251,32 @@ fn test_fmt_exp() {
     let v = swfp::X87F80::from_bits(0x7FFE8FFFFFFFFFFFFFFE);
     assert_eq!(format!("{v:e}"), "6.692239661384428677e4931");
     assert_eq!(format!("{v:.10e}"), "6.6922396614e4931");
+}
+
+#[test]
+fn test_round_int() {
+    check_round_int_exact(swfp::X87F80::NAN);
+    check_round_int_exact(swfp::X87F80::INFINITY);
+    check_round_int_exact(-swfp::X87F80::INFINITY);
+    check_round_int_exact(swfp::X87F80::ZERO);
+    check_round_int_exact(-swfp::X87F80::ZERO);
+
+    for s in [false, true] {
+        check_round_int_exact(mk_x87f80(s, 0, true, 0));
+        check_round_int_exact(mk_x87f80(s, 2, true, 1 << 62));
+        check_round_int_exact(mk_x87f80(s, 63, true, (1 << 63) - 1));
+
+        let zero = mk_x87f80(s, -16383, false, 0);
+        let one = mk_x87f80(s, 0, true, 0);
+        check_round_int_round(mk_x87f80(s, -16383, false, 1), zero, one, Loss::HalfDown);
+        check_round_int_round(mk_x87f80(s, -2, true, 0), zero, one, Loss::HalfDown);
+        check_round_int_round(mk_x87f80(s, -1, true, 0), zero, one, Loss::HalfEven);
+        check_round_int_round(mk_x87f80(s, -1, true, 1 << 62), zero, one, Loss::HalfUp);
+        check_round_int_round(
+            mk_x87f80(s, -1, true, (1 << 63) - 1),
+            zero,
+            one,
+            Loss::HalfUp,
+        );
+    }
 }
