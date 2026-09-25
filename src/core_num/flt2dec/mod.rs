@@ -483,7 +483,7 @@ where
 /// allocate all the buffer beforehand. Consequently, for any given arguments,
 /// 826 bytes of buffer should be sufficient for `f64`. Compare this with
 /// the actual number for the worst case: 770 bytes (when `exp = -1074`).
-fn estimate_max_buf_len(exp: i16) -> usize {
+pub(super) const fn estimate_max_buf_len(exp: i16) -> usize {
     21 + ((if exp < 0 { -12 } else { 5 } * exp as i32) as usize >> 4)
 }
 

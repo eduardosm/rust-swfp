@@ -18,7 +18,8 @@ fn float_to_decimal_common_exact<T>(
 where
     T: flt2dec::DecodableFloat,
 {
-    let mut buf: [u8; 1024] = [0; 1024]; // enough for f32 and f64
+    const MAX_BUF_LEN: usize = flt2dec::estimate_max_buf_len(-16494 - 112); // for f128
+    let mut buf: [u8; MAX_BUF_LEN] = [0; MAX_BUF_LEN];
     let mut parts: [numfmt::Part<'_>; 4] = [numfmt::Part::Zero(0); 4];
     let formatted = flt2dec::to_exact_fixed_str(
         if T::IS_LARGE {
@@ -99,7 +100,8 @@ fn float_to_exponential_common_exact<T>(
 where
     T: flt2dec::DecodableFloat,
 {
-    let mut buf: [u8; 1024] = [0; 1024]; // enough for f32 and f64
+    const MAX_BUF_LEN: usize = flt2dec::estimate_max_buf_len(-16494 - 112); // for f128
+    let mut buf: [u8; MAX_BUF_LEN] = [0; MAX_BUF_LEN];
     let mut parts: [numfmt::Part<'_>; 6] = [numfmt::Part::Zero(0); 6];
     let formatted = flt2dec::to_exact_exp_str(
         if T::IS_LARGE {
