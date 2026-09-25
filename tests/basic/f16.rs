@@ -145,6 +145,12 @@ fn test_from_str() {
         -swfp::F16::INFINITY,
         Loss::Overflow,
     );
+    check_from_str_round(
+        "3.4028e38",
+        mk_f16(false, 15, 0x3FF),
+        swfp::F16::INFINITY,
+        Loss::Overflow,
+    );
 
     for e in -14..=15 {
         for m in 0..(1 << 10) {
