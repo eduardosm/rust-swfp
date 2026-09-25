@@ -745,10 +745,21 @@ where
         let (value, status) = rhs.add_ex(lhs, round);
         assert_eq!(status, FpStatus::Ok);
         assert_eq!(value.to_bits(), expected_res.to_bits());
+
+        let (value, status) = lhs.sub_ex(-rhs, round);
+        assert_eq!(status, FpStatus::Ok);
+        assert_eq!(value.to_bits(), expected_res.to_bits());
+
+        let (value, status) = rhs.sub_ex(-lhs, round);
+        assert_eq!(status, FpStatus::Ok);
+        assert_eq!(value.to_bits(), expected_res.to_bits());
     }
 
     assert_eq!((lhs + rhs).to_bits(), expected_res.to_bits());
     assert_eq!((rhs + lhs).to_bits(), expected_res.to_bits());
+
+    assert_eq!((lhs - (-rhs)).to_bits(), expected_res.to_bits());
+    assert_eq!((rhs - (-lhs)).to_bits(), expected_res.to_bits());
 }
 
 fn check_add_sub_round<F>(

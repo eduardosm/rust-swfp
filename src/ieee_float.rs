@@ -745,7 +745,7 @@ impl<S: Semantics> IeeeFloat<S> {
                 if self.sign == rhs.sign {
                     (Self::make_default_qnan(), FpStatus::Invalid)
                 } else {
-                    (self, FpStatus::Invalid)
+                    (self, FpStatus::Ok)
                 }
             }
             (FpCategory::Infinite, _) => (self, FpStatus::Ok),
