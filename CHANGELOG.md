@@ -11,6 +11,7 @@
 - Fixed panic when formatting `F128` and `X87F80` with a fixed number of digits
 - Fixed `F128` being formatted with lowest digits replaced with zeros in some
   cases.
+- `inf - (-inf)` now returns `FpStatus::Ok` instead of `FpStatus::Invalid`
 
 ## 0.1.0 (2026-04-02)
 

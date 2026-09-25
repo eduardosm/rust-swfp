@@ -987,6 +987,13 @@ fn test_frexp() {
 fn test_add_sub() {
     for s in [false, true] {
         // same sign
+        let inf = if s {
+            -swfp::F32::INFINITY
+        } else {
+            swfp::F32::INFINITY
+        };
+        check_add_sub_exact(inf, inf, inf);
+
         check_add_sub_exact(mk_f32(s, -127, 0), mk_f32(s, -127, 0), mk_f32(s, -127, 0));
         check_add_sub_exact(mk_f32(s, 0, 0x7FFFFF), mk_f32(s, -23, 0), mk_f32(s, 1, 0));
         check_add_sub_exact(
