@@ -212,6 +212,9 @@ fn test_fmt_display() {
     let v = swfp::F128::from_bits(0xC17387AE70C9E700B8049732D11A23D); // 1e-4000
     assert_eq!(format!("{v}"), format!("0.{}1", "0".repeat(3999)));
     assert_eq!(format!("{v:.10}"), "0.0000000000");
+
+    let v = swfp::F128::from_bits(0x40640000000000000000000000000800); // 2^101 + 1
+    assert_eq!(format!("{v:.0}"), "2535301200456458802993406410753");
 }
 
 #[test]
