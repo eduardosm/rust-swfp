@@ -484,7 +484,7 @@ where
 /// 826 bytes of buffer should be sufficient for `f64`. Compare this with
 /// the actual number for the worst case: 770 bytes (when `exp = -1074`).
 pub(super) const fn estimate_max_buf_len(exp: i16) -> usize {
-    21 + ((if exp < 0 { -12 } else { 5 } * exp as i32) as usize >> 4)
+    36 + ((if exp < 0 { -12 } else { 5 } * exp as i32) as usize >> 4)
 }
 
 /// Formats given floating point number into the exponential form with
