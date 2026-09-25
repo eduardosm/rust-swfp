@@ -220,12 +220,17 @@ fn test_fmt_display() {
         format!("{v}"),
         format!("0.{}33621031431120935063", "0".repeat(4931))
     );
+    assert_eq!(format!("{v:.10}"), "0.0000000000");
 
     let v = swfp::X87F80::from_bits(0x7FFE8FFFFFFFFFFFFFFF); // MAX
     assert_eq!(
         format!("{v}"),
         format!("6692239661384428678{}", "0".repeat(4913))
     );
+
+    let v = swfp::X87F80::from_bits(0xC179C3D73864F3805C0); // 1e-4000
+    assert_eq!(format!("{v}"), format!("0.{}1", "0".repeat(3999)));
+    assert_eq!(format!("{v:.10}"), "0.0000000000");
 }
 
 #[test]
@@ -251,6 +256,18 @@ fn test_fmt_exp() {
     let v = swfp::X87F80::from_bits(0x7FFE8FFFFFFFFFFFFFFE);
     assert_eq!(format!("{v:e}"), "6.692239661384428677e4931");
     assert_eq!(format!("{v:.10e}"), "6.6922396614e4931");
+
+    let v = swfp::X87F80::from_bits(0xC179C3D73864F3805C0); // 1e-4000
+    assert_eq!(format!("{v:e}"), "1e-4000");
+    assert_eq!(format!("{v:.10e}"), "1.0000000000e-4000");
+    let s = format!("{v:.10000e}");
+    assert!(
+        s.starts_with(
+            "9.9999999999999999998725766037771403366859164981113486605022635033705520196",
+        ),
+        "{s}",
+    );
+    assert!(s.ends_with("e-4001"));
 }
 
 #[test]
