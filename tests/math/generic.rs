@@ -394,6 +394,16 @@ pub(crate) fn test_tand_special<F: TestFloat + swfp::math::Trigonometric>() {
     assert_is_nan!((-F::INFINITY).tand());
     assert_total_eq!(F::ZERO.tand(), F::ZERO);
     assert_total_eq!((-F::ZERO).tand(), -F::ZERO);
+    assert_total_eq!(F::from_int(90).tand(), F::INFINITY);
+    assert_total_eq!(F::from_int(-90).tand(), -F::INFINITY);
+    assert_total_eq!(F::from_int(180).tand(), -F::ZERO);
+    assert_total_eq!(F::from_int(-180).tand(), F::ZERO);
+    assert_total_eq!(F::from_int(270).tand(), -F::INFINITY);
+    assert_total_eq!(F::from_int(-270).tand(), F::INFINITY);
+    assert_total_eq!(F::from_int(360).tand(), F::ZERO);
+    assert_total_eq!(F::from_int(-360).tand(), -F::ZERO);
+    assert_total_eq!(F::from_int(450).tand(), F::INFINITY);
+    assert_total_eq!(F::from_int(-450).tand(), -F::INFINITY);
 }
 
 pub(crate) fn test_sinpi_cospi_special<F: TestFloat + swfp::math::Trigonometric>() {
@@ -432,6 +442,16 @@ pub(crate) fn test_tanpi_special<F: TestFloat + swfp::math::Trigonometric>() {
     assert_is_nan!((-F::INFINITY).tanpi());
     assert_total_eq!(F::ZERO.tanpi(), F::ZERO);
     assert_total_eq!((-F::ZERO).tanpi(), -F::ZERO);
+    assert_total_eq!(F::from_str("0.5").unwrap().tanpi(), F::INFINITY);
+    assert_total_eq!(F::from_str("-0.5").unwrap().tanpi(), -F::INFINITY);
+    assert_total_eq!(F::from_str("1.0").unwrap().tanpi(), -F::ZERO);
+    assert_total_eq!(F::from_str("-1.0").unwrap().tanpi(), F::ZERO);
+    assert_total_eq!(F::from_str("1.5").unwrap().tanpi(), -F::INFINITY);
+    assert_total_eq!(F::from_str("-1.5").unwrap().tanpi(), F::INFINITY);
+    assert_total_eq!(F::from_str("2.0").unwrap().tanpi(), F::ZERO);
+    assert_total_eq!(F::from_str("-2.0").unwrap().tanpi(), -F::ZERO);
+    assert_total_eq!(F::from_str("2.5").unwrap().tanpi(), F::INFINITY);
+    assert_total_eq!(F::from_str("-2.5").unwrap().tanpi(), -F::INFINITY);
 }
 
 pub(crate) fn test_asin_special<F: TestFloat + swfp::math::InvTrigonometric>() {

@@ -105,25 +105,6 @@ fn test_tand() {
 
         let mut expected = to_rug(x);
         let round_cmp = expected.tan_u_round(360, rug::float::Round::Nearest);
-        if expected.is_zero() {
-            rug::Assign::assign(
-                &mut expected,
-                if x.is_sign_positive() {
-                    rug::float::Special::Zero
-                } else {
-                    rug::float::Special::NegZero
-                },
-            );
-        } else if expected.is_infinite() {
-            rug::Assign::assign(
-                &mut expected,
-                if x.is_sign_positive() {
-                    rug::float::Special::Infinity
-                } else {
-                    rug::float::Special::NegInfinity
-                },
-            );
-        }
         check_exact(
             x,
             actual,
@@ -181,25 +162,6 @@ fn test_tanpi() {
 
         let mut expected = to_rug(x);
         let round_cmp = expected.tan_pi_round(rug::float::Round::Nearest);
-        if expected.is_zero() {
-            rug::Assign::assign(
-                &mut expected,
-                if x.is_sign_positive() {
-                    rug::float::Special::Zero
-                } else {
-                    rug::float::Special::NegZero
-                },
-            );
-        } else if expected.is_infinite() {
-            rug::Assign::assign(
-                &mut expected,
-                if x.is_sign_positive() {
-                    rug::float::Special::Infinity
-                } else {
-                    rug::float::Special::NegInfinity
-                },
-            );
-        }
         check_exact(
             x,
             actual,
