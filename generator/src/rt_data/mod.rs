@@ -178,7 +178,6 @@ fn generate(param: &str) -> Result<String, RunError> {
 
         "inv_cbrt_poly" => approx::gen_inv_cbrt_poly(&args),
         "exp_m1_poly" => approx::gen_exp_m1_poly(&args),
-        "exp_table" => approx::gen_exp_table(&args),
         "ln_1p_poly" => approx::gen_ln_1p_poly(&args),
         "ln_table" => approx::gen_ln_table(&args),
         "ln_lo_scale_table" => approx::gen_ln_lo_scale_table(&args),

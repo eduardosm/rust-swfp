@@ -32,33 +32,6 @@ pub(super) fn gen_exp_m1_poly(args: &[&str]) -> Result<String, String> {
     Ok(out)
 }
 
-pub(super) fn gen_exp_table(args: &[&str]) -> Result<String, String> {
-    let (fkind, bits): (AuxFloatKind, u32) = arg_utils::parse_2_args(args)?;
-
-    let mut out = String::new();
-
-    let ftype = fkind.name();
-    let prec = fkind.prec();
-    let max = (1i32 << bits) - 1;
-    let min = -max;
-    let num = max - min + 1;
-
-    writeln!(out, "// EXP_TBL[i] = exp((i - {}) / {})", -min, 1 << bits).unwrap();
-    writeln!(out, "static EXP_TBL: [{ftype}; {num}] = [").unwrap();
-    for x in min..=max {
-        let v = rug::Float::with_val(prec, x) >> bits;
-        let v = v.exp();
-        out.push_str("    ");
-        render_aux_const_value(fkind, &v, &mut out);
-        out.push_str(", // ");
-        render_aux_const_dec_value(fkind, &v, &mut out);
-        out.push('\n');
-    }
-    writeln!(out, "];").unwrap();
-
-    Ok(out)
-}
-
 pub(super) fn gen_ln_1p_poly(args: &[&str]) -> Result<String, String> {
     let (fkind, num_coeffs, range_start, range_end) = arg_utils::parse_4_args(args)?;
 
