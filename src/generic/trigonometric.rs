@@ -198,9 +198,9 @@ pub(crate) fn tand<F: Trigonometric>(x: F) -> F {
         let inv = (n & 1) != 0;
         if y.is_zero() {
             if inv {
-                F::INFINITY.set_sign(x.sign())
+                F::INFINITY.set_sign(n == 3)
             } else {
-                F::ZERO.set_sign(x.sign())
+                F::ZERO.set_sign(x.sign() ^ (n == 2))
             }
         } else {
             F::tand_reduced(y, inv)
@@ -317,9 +317,9 @@ pub(crate) fn tanpi<F: Trigonometric>(x: F) -> F {
         let inv = (n & 1) != 0;
         if y.is_zero() {
             if inv {
-                F::INFINITY.set_sign(x.sign())
+                F::INFINITY.set_sign(n == 3)
             } else {
-                F::ZERO.set_sign(x.sign())
+                F::ZERO.set_sign(x.sign() ^ (n == 2))
             }
         } else {
             F::tanpi_reduced(y, inv)
