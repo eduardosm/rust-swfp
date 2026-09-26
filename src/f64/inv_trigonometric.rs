@@ -769,23 +769,23 @@ fn atan2_core(mut n: SfpM192E16, mut d: SfpM192E16) -> SfpM192E16 {
         off = off + SfpM192E16::one().set_sign(ysgn ^ xsgn);
     }
 
-    // atan2(y, x) = atan(n/d) + off * π/2
     let z = n / d;
-    if off.is_zero() && z.exponent() <= -64 {
-        // atan2(y, x) ~= y/x = n/d
-        // Avoid falsely-tied roundings
-        z.next_mant_down()
+    let z2 = z.square();
+    let z3 = z2 * z;
+    // atan2(y, x) = atan(n/d) + off * π/2
+    let p = if z.exponent() <= -4 {
+        atan_poly_1(z, z2, z3)
+    } else if z.exponent() <= -2 {
+        atan_poly_2(z, z2, z3)
     } else {
-        let z2 = z.square();
-        let z3 = z2 * z;
-        let p = if z.exponent() <= -4 {
-            atan_poly_1(z, z2, z3)
-        } else if z.exponent() <= -2 {
-            atan_poly_2(z, z2, z3)
-        } else {
-            atan_poly_3(z, z2, z3)
-        };
-        p + off * FRAC_PI_2
+        atan_poly_3(z, z2, z3)
+    };
+    let r = p + off * FRAC_PI_2;
+    if r == z {
+        // Avoid falsely-tied roundings
+        r.next_mant_down()
+    } else {
+        r
     }
 }
 

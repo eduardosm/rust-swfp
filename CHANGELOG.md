@@ -16,6 +16,8 @@
   direction is `TowardPositive` or `TowardNegative`
 - Poles and zeros of `tand` and `tanpi` now have alternating signs
 - Fixed integer overflow reachable by `F32::pow` with some values
+- Fixed `F32::atan2d` and `F32::atan2pi` producing incorrectly rounded results
+  for some small `y/x` ratios
 
 ## 0.1.0 (2026-04-02)
 
