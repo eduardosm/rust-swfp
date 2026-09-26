@@ -351,7 +351,7 @@ impl crate::generic::Gamma for F64 {
                 };
 
                 // ln(abs(Γ(x))) = ln(π) - ln(abs(sin(πx))) - ln(Γ(1-x))
-                let lgx = LN_PI - ln(sinpix.abs() * p) - (nx - SfpM128E16::half()) * ln(nx) + nx;
+                let lgx = LN_PI - ln(sinpix.abs() * p) - (nx - SfpM128E16::half()) * ln_nx + nx;
                 let sign = if sinpix.sign() { -1 } else { 1 };
 
                 (lgx, sign)
