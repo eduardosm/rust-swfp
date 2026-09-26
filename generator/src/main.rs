@@ -21,18 +21,14 @@ fn main() -> ExitCode {
     let arg0 = args.next().unwrap();
 
     let Some(arg1) = args.next() else {
-        eprintln!("Usage: {} <MODE>", arg0.to_string_lossy());
+        eprintln!("Usage: {} <MODE>", arg0.display());
         return ExitCode::FAILURE;
     };
 
     match arg1.to_str() {
         Some("rt-data") => {
             if args.len() < 1 {
-                eprintln!(
-                    "Usage: {} {} <paths...>",
-                    arg0.to_string_lossy(),
-                    arg1.to_string_lossy(),
-                );
+                eprintln!("Usage: {} {} <paths...>", arg0.display(), arg1.display());
                 return ExitCode::FAILURE;
             }
 
@@ -46,11 +42,7 @@ fn main() -> ExitCode {
         }
         Some("test-data") => {
             if args.len() != 1 {
-                eprintln!(
-                    "Usage: {} {} <function>",
-                    arg0.to_string_lossy(),
-                    arg1.to_string_lossy(),
-                );
+                eprintln!("Usage: {} {} <function>", arg0.display(), arg1.display());
                 return ExitCode::FAILURE;
             }
 
