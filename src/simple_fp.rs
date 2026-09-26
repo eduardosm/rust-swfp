@@ -189,7 +189,8 @@ impl<M: traits::UInt, E: traits::SInt> Sfp<M, E> {
             if shift >= M::BITS {
                 return Some(T::ZERO);
             }
-            let v = ((self.m >> shift) + M::ONE) >> 1;
+            let t = self.m >> shift;
+            let v = (t >> 1) + (t & M::ONE);
             let v: T = v.try_into().ok()?;
             if self.s {
                 Some(v.wrapping_neg())
@@ -835,6 +836,7 @@ mod tests {
     type SfpM8E16 = Sfp<u8, i16>;
     type SfpM32E16 = Sfp<u32, i16>;
     type SfpM64E16 = Sfp<u64, i16>;
+    type SfpM128E16 = Sfp<u128, i16>;
 
     #[test]
     fn test_from_int() {
@@ -900,6 +902,26 @@ mod tests {
                 m: (0x1_ABCD_FEFE_u64 >> 1) as u32,
             }
         );
+
+        let value = SfpM32E16::from_int(u32::MAX);
+        assert_eq!(
+            value,
+            SfpM32E16 {
+                s: false,
+                e: 31,
+                m: 0xFFFF_FFFF,
+            }
+        );
+
+        let value = SfpM32E16::from_int(i32::MAX);
+        assert_eq!(
+            value,
+            SfpM32E16 {
+                s: false,
+                e: 30,
+                m: 0x7FFF_FFFF << 1,
+            }
+        );
     }
 
     #[test]
@@ -917,6 +939,20 @@ mod tests {
             m: 0xFEEE_0000,
         };
         assert_eq!(value.to_int_round::<u64>(), Some(0xFEEE << (48 - 15)));
+
+        let value = SfpM64E16 {
+            s: false,
+            e: 62,
+            m: u64::MAX,
+        };
+        assert_eq!(value.to_int_round::<i16>(), None);
+
+        let value = SfpM128E16 {
+            s: false,
+            e: 126,
+            m: u128::MAX,
+        };
+        assert_eq!(value.to_int_round::<i16>(), None);
     }
 
     #[test]

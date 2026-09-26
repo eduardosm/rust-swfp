@@ -92,6 +92,13 @@ fn test_pow_with(mut f: impl FnMut(F32, F32)) {
         }
     }
 
+    for ey in -126..=127 {
+        let x = F32::from_uint(2);
+        let y = mk_normal(0, ey, false);
+        f(x, y);
+        f(x, -y);
+    }
+
     // Test data from core-math
     for [x, y] in crate::data::read_data_file::<[F32; 2]>("core-math/binary32/powf.wc") {
         f(x, y);
