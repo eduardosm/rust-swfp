@@ -54,8 +54,8 @@ fn test_with(mut f: impl FnMut(F64)) {
     for e in -1022..=1023 {
         f(mk_normal(0, e, false));
         f(mk_normal(0, e, true));
-        f(mk_normal((1 << 23) - 1, e, false));
-        f(mk_normal((1 << 23) - 1, e, true));
+        f(mk_normal((1 << 52) - 1, e, false));
+        f(mk_normal((1 << 52) - 1, e, true));
         for _ in 0..2000 {
             let m = super::gen_mantissa(&mut rng);
             f(mk_normal(m, e, false));
