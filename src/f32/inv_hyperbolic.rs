@@ -99,7 +99,7 @@ impl crate::generic::InvHyperbolic for F32 {
         }
 
         if x.exponent() < -20 {
-            // asinh(x) ~= x for small x
+            // atanh(x) ~= x for small x
             return x;
         }
 
