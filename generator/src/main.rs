@@ -30,8 +30,8 @@ fn main() -> ExitCode {
             if args.len() < 1 {
                 eprintln!(
                     "Usage: {} {} <paths...>",
-                    arg1.to_string_lossy(),
                     arg0.to_string_lossy(),
+                    arg1.to_string_lossy(),
                 );
                 return ExitCode::FAILURE;
             }
