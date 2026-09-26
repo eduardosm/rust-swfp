@@ -392,7 +392,7 @@ where
         |round| F::from_int_ex(value, round),
         expected_res_tz,
         expected_res_az,
-        false,
+        value < 0,
         loss,
     );
 
