@@ -218,6 +218,8 @@ pub trait Float:
     /// Converts `self` to a `bits`-bit unsigned integer rounding towards zero.
     ///
     /// Returns `None` if `self` is NaN, infinity or out of range.
+    ///
+    /// Panics if `bits` is less than 1 or greater than 128.
     #[inline]
     fn to_uint(self, bits: u32) -> Option<u128> {
         self.to_uint_ex(bits, Round::TowardZero).0
@@ -230,11 +232,15 @@ pub trait Float:
     ///
     /// A status of [`FpStatus::Invalid`] is also returned if `self` is a quiet
     /// NaN.
+    ///
+    /// Panics if `bits` is less than 1 or greater than 128.
     fn to_uint_ex(self, bits: u32, round: Round) -> (Option<u128>, FpStatus);
 
     /// Converts `self` to a `bits`-bit signed integer rounding towards zero.
     ///
     /// Returns `None` if `self` is NaN or out of range.
+    ///
+    /// Panics if `bits` is less than 1 or greater than 128.
     #[inline]
     fn to_int(self, bits: u32) -> Option<i128> {
         self.to_int_ex(bits, Round::TowardZero).0
@@ -247,6 +253,8 @@ pub trait Float:
     ///
     /// A status of [`FpStatus::Invalid`] is also returned if `self` is a quiet
     /// NaN.
+    ///
+    /// Panics if `bits` is less than 1 or greater than 128.
     fn to_int_ex(self, bits: u32, round: Round) -> (Option<i128>, FpStatus);
 
     /// Parses a floating-point number from a base-10 string, rounding according
