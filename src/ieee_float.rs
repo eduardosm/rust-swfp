@@ -386,13 +386,21 @@ impl<S: Semantics> IeeeFloat<S> {
     }
 
     pub(crate) fn from_uint(value: u128, round: Round) -> (Self, FpStatus) {
+        Self::from_uint_and_sign(value, false, round)
+    }
+
+    pub(crate) fn from_int(value: i128, round: Round) -> (Self, FpStatus) {
+        Self::from_uint_and_sign(value.unsigned_abs(), value < 0, round)
+    }
+
+    fn from_uint_and_sign(value: u128, sign: bool, round: Round) -> (Self, FpStatus) {
         if value == 0 {
-            return (Self::make_zero(false), FpStatus::Ok);
+            return (Self::make_zero(sign), FpStatus::Ok);
         }
 
         let lz = value.leading_zeros();
         let Ok(exp) = S::Exp::try_from(127 - lz) else {
-            return (Self::make_overflow_value(false, round), FpStatus::Overflow);
+            return (Self::make_overflow_value(sign, round), FpStatus::Overflow);
         };
 
         const {
@@ -410,16 +418,7 @@ impl<S: Semantics> IeeeFloat<S> {
             (mant, RoundLoss::Zero)
         };
 
-        Self::round_and_classify(false, exp, mant, loss, round)
-    }
-
-    pub(crate) fn from_int(value: i128, round: Round) -> (Self, FpStatus) {
-        let (res_value, status) = Self::from_uint(value.unsigned_abs(), round);
-        if value < 0 {
-            (-res_value, status)
-        } else {
-            (res_value, status)
-        }
+        Self::round_and_classify(sign, exp, mant, loss, round)
     }
 
     pub(crate) fn to_uint(self, bits: u32, round: Round) -> (Option<u128>, FpStatus) {

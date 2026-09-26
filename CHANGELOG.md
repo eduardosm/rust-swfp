@@ -12,6 +12,8 @@
 - Fixed `F128` being formatted with lowest digits replaced with zeros in some
   cases.
 - `inf - (-inf)` now returns `FpStatus::Ok` instead of `FpStatus::Invalid`
+- Fixed `from_int` not rounding correctly when the input is negative and rounding
+  direction is `TowardPositive` or `TowardNegative`
 
 ## 0.1.0 (2026-04-02)
 
