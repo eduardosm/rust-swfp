@@ -169,7 +169,7 @@ pub trait Pow: crate::Float {
     /// * Returns 1 when `x` is 1 or `y` is zero
     /// * Returns 1 when `x` is -1 and `y` is positive or negative infinity
     /// * Returns NaN when `x` is NaN and `y` is not zero
-    /// * Returns NaN when `y` is NaN and `z` is not 1
+    /// * Returns NaN when `y` is NaN and `x` is not 1
     /// * Returns positive zero when `x` is positive zero and `y` is positive
     /// * Returns positive zero when `x` is positive infinity and `y` is
     ///   negative
@@ -210,7 +210,6 @@ pub trait Pow: crate::Float {
     /// Special cases:
     /// * Returns 1 when `x` is 1 or `n` is zero
     /// * Returns NaN when `x` is NaN and `n` is not zero
-    /// * Returns NaN when `n` is NaN and `z` is not 1
     /// * Returns positive zero when `x` is positive zero and `n` is positive
     /// * Returns positive zero when `x` is positive infinity and `n` is
     ///   negative
