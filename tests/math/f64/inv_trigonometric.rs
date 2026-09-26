@@ -418,7 +418,7 @@ fn test_atan2_with(mut f: impl FnMut(F64, F64)) {
         }
         f(y, x);
     }
-    for [x, y] in crate::data::read_data_file::<[F64; 2]>("core-math/binary64/atan2pi.wc") {
+    for [y, x] in crate::data::read_data_file::<[F64; 2]>("core-math/binary64/atan2pi.wc") {
         if y.is_nan() || x.is_nan() {
             continue;
         }

@@ -316,15 +316,15 @@ fn atan2_core(mut n: SfpM128E16, mut d: SfpM128E16) -> SfpM128E16 {
     }
 
     let z = n / d;
-    if off.is_zero() && z.exponent() <= -32 {
-        // atan2(y, x) ~= y/x = n/d
+    let z2 = z.square();
+    let z3 = z2 * z;
+    // atan2(y, x) = atan(n/d) + off * π/2
+    let r = atan_poly(z, z2, z3) + off * FRAC_PI_2;
+    if r == z {
         // Avoid falsely-tied roundings
-        z.next_mant_down()
+        r.next_mant_down()
     } else {
-        // atan2(y, x) = atan(n/d) + off * π/2
-        let z2 = z.square();
-        let z3 = z2 * z;
-        atan_poly(z, z2, z3) + off * FRAC_PI_2
+        r
     }
 }
 
