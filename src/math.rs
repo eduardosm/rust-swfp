@@ -356,13 +356,13 @@ pub trait InvTrigonometric: crate::Float {
     ///
     /// Special cases:
     /// * Returns NaN if `x` is NaN or `y` is NaN
-    /// * Returns positive zero if `y` is positive zero `x` is positive (zero,
+    /// * Returns positive zero if `y` is positive zero and `x` is positive (zero,
     ///   finite or infinity)
-    /// * Returns negative zero if `y` is negative zero `x` is positive (zero,
+    /// * Returns negative zero if `y` is negative zero and `x` is positive (zero,
     ///   finite or infinity)
-    /// * Returns π if `y` is positive zero `x` is positive (zero, finite or
+    /// * Returns π if `y` is positive zero and `x` is negative (zero, finite or
     ///   infinity)
-    /// * Returns -π if `y` is negative zero `x` is negative (zero, finite or
+    /// * Returns -π if `y` is negative zero and `x` is negative (zero, finite or
     ///   infinity)
     /// * Returns π/2 if `y` is positive infinity and `x` is zero or finite
     /// * Returns -π/2 if `y` is negative infinity and `x` is zero or finite
@@ -409,13 +409,13 @@ pub trait InvTrigonometric: crate::Float {
     ///
     /// Special cases:
     /// * Returns NaN if `x` is NaN or `y` is NaN
-    /// * Returns positive zero if `y` is positive zero `x` is positive (zero,
+    /// * Returns positive zero if `y` is positive zero and `x` is positive (zero,
     ///   finite or infinity)
-    /// * Returns negative zero if `y` is negative zero `x` is positive (zero,
+    /// * Returns negative zero if `y` is negative zero and `x` is positive (zero,
     ///   finite or infinity)
-    /// * Returns 180 if `y` is positive zero `x` is positive (zero, finite or
+    /// * Returns 180 if `y` is positive zero and `x` is negative (zero, finite or
     ///   infinity)
-    /// * Returns -180 if `y` is negative zero `x` is negative (zero, finite or
+    /// * Returns -180 if `y` is negative zero and `x` is negative (zero, finite or
     ///   infinity)
     /// * Returns 90 if `y` is positive infinity and `x` is zero or finite
     /// * Returns -90 if `y` is negative infinity and `x` is zero or finite
@@ -465,13 +465,13 @@ pub trait InvTrigonometric: crate::Float {
     ///
     /// Special cases:
     /// * Returns NaN if `x` is NaN or `y` is NaN
-    /// * Returns positive zero if `y` is positive zero `x` is positive (zero,
+    /// * Returns positive zero if `y` is positive zero and `x` is positive (zero,
     ///   finite or infinity)
-    /// * Returns negative zero if `y` is negative zero `x` is positive (zero,
+    /// * Returns negative zero if `y` is negative zero and `x` is positive (zero,
     ///   finite or infinity)
-    /// * Returns 1 if `y` is positive zero `x` is positive (zero, finite or
+    /// * Returns 1 if `y` is positive zero and `x` is negative (zero, finite or
     ///   infinity)
-    /// * Returns -1 if `y` is negative zero `x` is negative (zero, finite or
+    /// * Returns -1 if `y` is negative zero and `x` is negative (zero, finite or
     ///   infinity)
     /// * Returns 0.5 if `y` is positive infinity and `x` is zero or finite
     /// * Returns -0.5 if `y` is negative infinity and `x` is zero or finite
