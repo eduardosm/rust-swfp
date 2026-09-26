@@ -701,7 +701,7 @@ where
     for round in ALL_ROUND_MODES {
         let (value, status) = value.scalbn_ex(exp, round);
         assert_eq!(status, FpStatus::Ok);
-        assert_eq!(value.to_bits(), value.to_bits());
+        assert_eq!(value.to_bits(), expected_res.to_bits());
     }
 
     assert_eq!(value.scalbn(exp).to_bits(), expected_res.to_bits());
