@@ -118,6 +118,8 @@ fn test_tand() {
 
 #[test]
 fn test_sinpi_cospi() {
+    crate::generic::test_sinpi_cospi_special::<F64>();
+
     test_with(|x| {
         let actual_sin = x.sinpi();
         let actual_cos = x.cospi();
@@ -152,6 +154,8 @@ fn test_sinpi_cospi() {
 
 #[test]
 fn test_tanpi() {
+    crate::generic::test_tanpi_special::<F64>();
+
     test_with(|x| {
         let actual = x.tanpi();
         assert_total_eq!((-x).tanpi(), -actual);
