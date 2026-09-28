@@ -181,7 +181,7 @@ fn test_log_1p_with(mut f: impl FnMut(F32)) {
         f(F32::from_uint(x));
     }
 
-    // 1 < x < 0
+    // -1 < x < 0
     for e in -126..=-1 {
         for &m in super::NORMAL_MANTISSAS.iter() {
             f(mk_normal(m, e, true));
