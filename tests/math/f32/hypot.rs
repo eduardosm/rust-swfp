@@ -69,14 +69,14 @@ fn test_with(mut f: impl FnMut(F32, F32)) {
         F32::ZERO,
         F32::from_int(1),
         mk_normal(0, 126, false),
-        mk_normal(0x3FFFFF, 126, false),
+        mk_normal(0x7FFFFF, 126, false),
         mk_normal(0, 127, false),
-        mk_normal(0x3FFFFF, 127, false),
+        mk_normal(0x7FFFFF, 127, false),
         mk_normal(0, -126, false),
-        mk_normal(0x3FFFFF, -126, false),
+        mk_normal(0x7FFFFF, -126, false),
         mk_subnormal(1, false),
-        mk_subnormal(0x200000, false),
-        mk_subnormal(0x3FFFFF, false),
+        mk_subnormal(0x400000, false),
+        mk_subnormal(0x7FFFFF, false),
     ];
 
     for x in specials {
