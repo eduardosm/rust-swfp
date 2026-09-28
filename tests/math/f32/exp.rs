@@ -4,6 +4,8 @@ use super::{check_exact, mk_normal, mk_subnormal, to_rug};
 
 #[test]
 fn test_exp() {
+    crate::generic::test_exp_special::<F32>();
+
     test_with(|x| {
         let actual = x.exp();
 
@@ -22,6 +24,8 @@ fn test_exp() {
 
 #[test]
 fn test_exp_m1() {
+    crate::generic::test_exp_m1_special::<F32>();
+
     test_with(|x| {
         let actual = x.exp_m1();
 
@@ -40,6 +44,8 @@ fn test_exp_m1() {
 
 #[test]
 fn test_exp2() {
+    crate::generic::test_exp2_special::<F32>();
+
     test_with(|x| {
         let actual = x.exp2();
 
@@ -78,6 +84,8 @@ fn test_exp2_m1() {
 
 #[test]
 fn test_exp10() {
+    crate::generic::test_exp10_special::<F32>();
+
     test_with(|x| {
         let actual = x.exp10();
 
