@@ -144,7 +144,7 @@ fn test_log_1p_with(mut f: impl FnMut(F16)) {
         f(mk_subnormal(m, true));
     }
 
-    // 1 < x < 0
+    // -1 < x < 0
     for e in -14..=-1 {
         for m in 0..(1 << 10) {
             f(mk_normal(m, e, true));
