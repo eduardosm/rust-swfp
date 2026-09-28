@@ -645,9 +645,9 @@ where
     F: Float<Bits: std::fmt::Debug>,
 {
     for round in ALL_ROUND_MODES {
-        let (value, status) = value.round_int_ex(round);
+        let (result, status) = value.round_int_ex(round);
         assert_eq!(status, FpStatus::Ok);
-        assert_eq!(value.to_bits(), value.to_bits());
+        assert_eq!(result.to_bits(), value.to_bits());
     }
 
     assert_eq!(value.round_ties_even().to_bits(), value.to_bits());
