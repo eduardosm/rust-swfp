@@ -21,7 +21,7 @@ impl ieee_float::Semantics for F8E4M3B8NnzSemantics {
 /// 8-bit floating point type with 4 exponent bits and 3 mantissa bits.
 ///
 /// This format is described in <https://arxiv.org/abs/2206.02915>. The exponent
-/// bias is 8. It does not have infinites or signed zeros, and NaN is encoded
+/// bias is 8. It does not have infinities or signed zeros, and NaN is encoded
 /// as negative zero.
 #[derive(Copy, Clone)]
 pub struct F8E4M3B8Nnz(pub(crate) ieee_float::IeeeFloat<F8E4M3B8NnzSemantics>);
