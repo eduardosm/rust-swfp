@@ -96,7 +96,7 @@ pub enum FpStatus {
     Invalid,
     /// The result is larger than the maximum representable value.
     Overflow,
-    /// The result result is not exact and has been rounded into zero or a
+    /// The result is not exact and has been rounded into zero or a
     /// subnormal value.
     Underflow,
     /// The result is not exact and has been rounded into a normal value.
@@ -156,8 +156,7 @@ impl core::fmt::Display for ParseFloatError {
     }
 }
 
-/// Trait that represents provides operations on soft-floating-point of this
-/// crate.
+/// Trait that provides operations on soft-floating-point types of this crate.
 ///
 /// This trait is sealed, so it cannot be implemented for types outside this
 /// crate.
@@ -230,7 +229,7 @@ pub trait Float:
     /// Converts `self` to a `bits`-bit unsigned integer rounding according to
     /// `round`.
     ///
-    /// Returns `None` if `self` is NaN or out of range.
+    /// Returns `None` if `self` is NaN, infinity or out of range.
     ///
     /// A status of [`FpStatus::Invalid`] is also returned if `self` is a quiet
     /// NaN.
@@ -240,7 +239,7 @@ pub trait Float:
 
     /// Converts `self` to a `bits`-bit signed integer rounding towards zero.
     ///
-    /// Returns `None` if `self` is NaN or out of range.
+    /// Returns `None` if `self` is NaN, infinity or out of range.
     ///
     /// Panics if `bits` is less than 1 or greater than 128.
     #[inline]
@@ -251,7 +250,7 @@ pub trait Float:
     /// Converts `self` to a `bits`-bit signed integer rounding according to
     /// `round`.
     ///
-    /// Returns `None` if `self` is NaN or out of range.
+    /// Returns `None` if `self` is NaN, infinity or out of range.
     ///
     /// A status of [`FpStatus::Invalid`] is also returned if `self` is a quiet
     /// NaN.
@@ -307,7 +306,7 @@ pub trait Float:
     /// Returns a value with the magnitude of `self` and the sign of `sign`.
     fn copysign(self, sign: Self) -> Self;
 
-    /// Rounds `self` to to an integer, according to `round`.
+    /// Rounds `self` to an integer, according to `round`.
     fn round_int_ex(self, round: Round) -> (Self, FpStatus);
 
     /// Rounds `self` to the nearest integer, ties round to even.

@@ -16,7 +16,7 @@ impl ieee_float::Semantics for F8E4M3NaoSemantics {
 /// 8-bit floating point type with 4 exponent bits and 3 mantissa bits.
 ///
 /// This format is described in <https://arxiv.org/abs/2209.05433>. It does not
-/// have infinites and NaN is encoded as all-ones.
+/// have infinities and NaN is encoded as all-ones.
 #[derive(Copy, Clone)]
 pub struct F8E4M3Nao(pub(crate) ieee_float::IeeeFloat<F8E4M3NaoSemantics>);
 
