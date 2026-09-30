@@ -81,16 +81,16 @@ impl crate::generic::Trigonometric for F32 {
             let xm = x.mant();
             let xe = x.exponent() - 23;
 
-            // EXP2_MOD45[i] = mod(2^(i + 3), 45)
+            // EXP2_MOD45[i] = mod(2^i, 45)
             const EXP2_MOD45: [u8; 12] = [1, 2, 4, 8, 16, 32, 19, 38, 31, 17, 34, 23];
 
-            // t = xm * mod(2^xe, 45)
+            // t = xm * mod(2^(xe - 3), 45)
             debug_assert!(xe > 3);
             let index = ((xe - 3) % 12) as usize;
             let t = xm * u32::from(EXP2_MOD45[index]);
-            // rem45 = mod(|x|, 45)
+            // rem45 = mod(|x|/8, 45)
             let rem45 = (t % 45) as u16;
-            // rem360 = mod(|x|, 360) = mod(|x|, 45) * 8
+            // rem360 = mod(|x|, 360) = mod(|x|/8, 45) * 8
             let rem360 = rem45 * 8;
 
             let mut n = (rem360 / 90) as u8;

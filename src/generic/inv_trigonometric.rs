@@ -46,9 +46,9 @@ pub(crate) fn asin<F: InvTrigonometric>(x: F) -> F {
 
 pub(crate) fn acos<F: InvTrigonometric>(x: F) -> F {
     if x.is_nan() || x.abs() > F::ONE {
-        // asin(NaN) = NaN
-        // asin(±inf) = NaN
-        // asin(|x| > 1) = NaN
+        // acos(NaN) = NaN
+        // acos(±inf) = NaN
+        // acos(|x| > 1) = NaN
         F::NAN
     } else {
         F::acos_finite(x)
@@ -81,7 +81,7 @@ pub(crate) fn atan2<F: InvTrigonometric>(y: F, x: F) -> F {
             // atan2(±0, x < 0) = ±π
             F::pi().set_sign(y.sign())
         } else {
-            // atan2(±0, +0) = ±π
+            // atan2(±0, +0) = ±0
             // atan2(±0, x > 0) = ±0
             y
         }
@@ -110,9 +110,9 @@ pub(crate) fn asind<F: InvTrigonometric>(x: F) -> F {
 
 pub(crate) fn acosd<F: InvTrigonometric>(x: F) -> F {
     if x.is_nan() || x.abs() > F::ONE {
-        // asind(NaN) = NaN
-        // asind(±inf) = NaN
-        // asind(|x| > 1) = NaN
+        // acosd(NaN) = NaN
+        // acosd(±inf) = NaN
+        // acosd(|x| > 1) = NaN
         F::NAN
     } else {
         F::acosd_finite(x)
@@ -145,13 +145,13 @@ pub(crate) fn atan2d<F: InvTrigonometric>(y: F, x: F) -> F {
             // atan2d(±0, x < 0) = ±180
             F::from_uint(180).set_sign(y.sign())
         } else {
-            // atan2(±0, +0) = ±180
-            // atan2(±0, x > 0) = ±0
+            // atan2d(±0, +0) = ±0
+            // atan2d(±0, x > 0) = ±0
             y
         }
     } else if x.is_zero() {
-        // atan2(y < 0, ±0) = -90
-        // atan2(y > 0, ±0) = +90
+        // atan2d(y < 0, ±0) = -90
+        // atan2d(y > 0, ±0) = +90
         F::from_uint(90).set_sign(y.sign())
     } else {
         F::atan2d_finite(y, x)
@@ -209,7 +209,7 @@ pub(crate) fn atan2pi<F: InvTrigonometric>(y: F, x: F) -> F {
             // atan2pi(±0, x < 0) = ±1
             F::ONE.set_sign(y.sign())
         } else {
-            // atan2pi(±0, +0) = ±1
+            // atan2pi(±0, +0) = ±0
             // atan2pi(±0, x > 0) = ±0
             y
         }
