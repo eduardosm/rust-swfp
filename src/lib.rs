@@ -352,7 +352,7 @@ pub trait Float:
     /// Splits `self` into mantissa and exponent.
     ///
     /// Returns `(m, e)` such as:
-    /// * `0.5 <= m < 1.0`
+    /// * `0.5 <= |m| < 1.0`
     /// * `self = m * 2^e`
     ///
     /// When `self` is zero, infinity or NaN, returns `self` as mantissa and
