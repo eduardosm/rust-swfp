@@ -51,7 +51,7 @@ pub(crate) fn pow<F: Pow>(x: F, y: F) -> F {
             } else {
                 // y is not an odd integer
                 if y.sign() {
-                    // pow(-inf, y) = -0 when y < 0
+                    // pow(-inf, y) = 0 when y < 0
                     F::ZERO
                 } else {
                     // pow(-inf, y) = inf when y > 0
@@ -145,7 +145,7 @@ pub(crate) fn powi<F: Pow>(x: F, y: i32) -> F {
             } else {
                 // y is even
                 if y < 0 {
-                    // pow(-inf, y) = -0 when y < 0
+                    // pow(-inf, y) = 0 when y < 0
                     F::ZERO
                 } else {
                     // pow(-inf, y) = inf when y > 0

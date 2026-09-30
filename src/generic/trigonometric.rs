@@ -210,11 +210,11 @@ pub(crate) fn tand<F: Trigonometric>(x: F) -> F {
 
 pub(crate) fn sinpi<F: Trigonometric>(x: F) -> F {
     if x.is_nan() || x.is_infinite() {
-        // sind(NaN) = NaN
-        // sind(±inf) = NaN
+        // sinpi(NaN) = NaN
+        // sinpi(±inf) = NaN
         F::NAN
     } else if x.is_zero() {
-        // sind(±0) = ±0
+        // sinpi(±0) = ±0
         x
     } else {
         let (n, y) = reduce_half_revs(x);
@@ -240,11 +240,11 @@ pub(crate) fn sinpi<F: Trigonometric>(x: F) -> F {
 
 pub(crate) fn cospi<F: Trigonometric>(x: F) -> F {
     if x.is_nan() || x.is_infinite() {
-        // cosd(NaN) = NaN
-        // cosd(±inf) = NaN
+        // cospi(NaN) = NaN
+        // cospi(±inf) = NaN
         F::NAN
     } else if x.is_zero() {
-        // cosd(±0) = 1
+        // cospi(±0) = 1
         F::ONE
     } else {
         let (n, y) = reduce_half_revs(x);
@@ -270,14 +270,14 @@ pub(crate) fn cospi<F: Trigonometric>(x: F) -> F {
 
 pub(crate) fn sinpi_cospi<F: Trigonometric>(x: F) -> (F, F) {
     if x.is_nan() || x.is_infinite() {
-        // sind(NaN) = NaN
-        // cosd(NaN) = NaN
-        // sind(±inf) = NaN
-        // cosd(±inf) = NaN
+        // sinpi(NaN) = NaN
+        // cospi(NaN) = NaN
+        // sinpi(±inf) = NaN
+        // cospi(±inf) = NaN
         (F::NAN, F::NAN)
     } else if x.is_zero() {
-        // sind(±0) = ±0
-        // cosd(±0) = 1
+        // sinpi(±0) = ±0
+        // cospi(±0) = 1
         (x, F::ONE)
     } else {
         let (n, y) = reduce_half_revs(x);
@@ -306,11 +306,11 @@ pub(crate) fn sinpi_cospi<F: Trigonometric>(x: F) -> (F, F) {
 
 pub(crate) fn tanpi<F: Trigonometric>(x: F) -> F {
     if x.is_nan() || x.is_infinite() {
-        // tand(NaN) = NaN
-        // tand(±inf) = NaN
+        // tanpi(NaN) = NaN
+        // tanpi(±inf) = NaN
         F::NAN
     } else if x.is_zero() {
-        // tand(±0) = ±0
+        // tanpi(±0) = ±0
         x
     } else {
         let (n, y) = reduce_half_revs(x);

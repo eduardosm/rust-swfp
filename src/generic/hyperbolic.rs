@@ -58,11 +58,10 @@ pub(crate) fn tanh<F: Hyperbolic>(x: F) -> F {
         // tanh(NaN) = NaN
         F::NAN
     } else if x.is_infinite() {
-        // tanh(±inf) = 1
+        // tanh(±inf) = ±1
         F::ONE.set_sign(x.sign())
     } else if x.is_zero() {
         // tanh(±0) = ±0
-        // cosh(±0) = 1
         x
     } else {
         F::tanh_finite(x)

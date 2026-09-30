@@ -48,7 +48,7 @@ impl crate::generic::Cbrt for F32 {
         let mut ti = SfpM64E16::from_sfp(t1);
 
         // refine ti with Newton iterations
-        // for each iteration: ti = ti - (1 / 3) * (r^2 * ti^4 - ti)
+        // for each iteration: ti = ti - (1 / 3) * (r * ti^4 - ti)
         ti = ti - FRAC_1_3 * (r * ti.square().square() - ti);
         ti = ti - FRAC_1_3 * (r * ti.square().square() - ti);
         ti = ti - FRAC_1_3 * (r * ti.square().square() - ti);
