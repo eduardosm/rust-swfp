@@ -187,7 +187,7 @@ pub trait Float:
     /// Infinity value with positive sign.
     const INFINITY: Self;
 
-    // Creates a floating-point number from its binary representation.
+    /// Creates a floating-point number from its binary representation.
     fn from_bits(bits: Self::Bits) -> Self;
 
     /// Returns the raw bit representation of the floating-point number.
