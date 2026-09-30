@@ -185,6 +185,8 @@ pub trait Float:
     const NAN: Self;
 
     /// Infinity value with positive sign.
+    ///
+    /// This will be NaN for types that cannot represent infinity.
     const INFINITY: Self;
 
     /// Creates a floating-point number from its binary representation.
