@@ -6,7 +6,7 @@ pub(crate) trait LineData: Sized {
 
 impl<T: ItemData> LineData for T {
     fn parse_line(s: &str) -> Result<Self, String> {
-        T::parse_item(s)
+        <[T; 1]>::parse_line(s).map(|[value]| value)
     }
 }
 
@@ -15,25 +15,40 @@ pub(crate) trait ItemData: Sized {
 }
 
 impl<T: ItemData, const N: usize> LineData for [T; N] {
-    fn parse_line(s: &str) -> Result<Self, String> {
+    fn parse_line(line: &str) -> Result<Self, String> {
         let mut values = std::array::from_fn(|_| None);
-        let mut split = s.split(',');
+        let mut s = line;
 
         // Use `std::array::try_from_fn` when stable.
-        for item in values.iter_mut() {
-            if let Some(part) = split.next() {
-                *item = Some(T::parse_item(part.trim())?);
-            } else {
-                return Err(format!("too few values in {s:?}"));
+        for (i, item) in values.iter_mut().enumerate() {
+            if i != 0 {
+                s = s
+                    .trim_start()
+                    .strip_prefix(',')
+                    .ok_or_else(|| format!("too few values in {line:?}"))?;
             }
+            let (token, rest) = split_token(s.trim_start());
+            *item = Some(T::parse_item(token)?);
+            s = rest;
         }
 
-        if split.next().is_some() {
-            return Err(format!("too many values in {s:?}"));
+        // Like core-math's own `sscanf`-based reader, ignore anything after
+        // the last value (e.g., `0x1.4f1d73be27a31p+1 44` or `-0x8p-972,0x4p-128):
+        // Exception` in core-math data), but still reject extra values.
+        if s.trim_start().starts_with(',') {
+            return Err(format!("too many values in {line:?}"));
         }
 
         Ok(values.map(Option::unwrap))
     }
+}
+
+/// Splits `s` into the leading token that can form a number and the rest.
+fn split_token(s: &str) -> (&str, &str) {
+    let end = s
+        .find(|c: char| !c.is_ascii_alphanumeric() && !matches!(c, '.' | '+' | '-'))
+        .unwrap_or(s.len());
+    s.split_at(end)
 }
 
 impl ItemData for swfp::F16 {
@@ -108,7 +123,7 @@ fn parse_float<T: swfp::Float>(s: &str) -> Result<T, &'static str> {
         (s, false)
     };
 
-    let value = if s == "nan" || s == "snan" {
+    let value = if s == "nan" || s == "qnan" || s == "snan" {
         T::NAN
     } else if s == "inf" {
         T::INFINITY
@@ -159,9 +174,7 @@ fn parse_float<T: swfp::Float>(s: &str) -> Result<T, &'static str> {
                     i += 1;
                 }
             }
-            if i == s.len() {
-                return Err("missing exponent digits");
-            }
+            let exp_start = i;
             while i < s.len() {
                 if let Some(digit) = char::from(s[i]).to_digit(10) {
                     exp = exp
@@ -174,8 +187,16 @@ fn parse_float<T: swfp::Float>(s: &str) -> Result<T, &'static str> {
                     break;
                 }
             }
+            if i == exp_start {
+                return Err("missing exponent digits");
+            }
             if neg_exp {
                 exp = -exp;
+            }
+
+            // Allow C `float` literal suffix (e.g., `0x1.ffff36p-1f`)
+            if i < s.len() && matches!(s[i], b'f' | b'F') {
+                i += 1;
             }
         }
         exp = exp
@@ -186,17 +207,23 @@ fn parse_float<T: swfp::Float>(s: &str) -> Result<T, &'static str> {
             return Err("extra characters");
         }
 
-        let (value, status) = T::from_uint_ex(mant, swfp::Round::TowardZero);
-        if status != swfp::FpStatus::Ok {
+        // Values that are not exactly representable (e.g., `0x11.e44c76af19d67p+1`
+        // in binary64) are rounded to nearest. This is done in two steps, so fail
+        // if both of them round to avoid double rounding.
+        let (value, status1) = T::from_uint_ex(mant, swfp::Round::NearestTiesToEven);
+        if !matches!(status1, swfp::FpStatus::Ok | swfp::FpStatus::Inexact) {
             return Err("from u128 not ok");
         }
 
-        let (value, status) = value.scalbn_ex(exp, swfp::Round::NearestTiesToEven);
-        if !matches!(
-            status,
-            swfp::FpStatus::Ok | swfp::FpStatus::Underflow | swfp::FpStatus::Inexact
-        ) {
-            return Err("scalbn not ok");
+        let (value, status2) = value.scalbn_ex(exp, swfp::Round::NearestTiesToEven);
+        match status2 {
+            swfp::FpStatus::Ok => {}
+            swfp::FpStatus::Underflow | swfp::FpStatus::Inexact => {
+                if status1 != swfp::FpStatus::Ok {
+                    return Err("double rounding");
+                }
+            }
+            _ => return Err("scalbn not ok"),
         }
         value
     } else {
@@ -210,7 +237,46 @@ fn parse_float<T: swfp::Float>(s: &str) -> Result<T, &'static str> {
 mod tests {
     use swfp::Float as _;
 
-    use super::parse_float;
+    use super::{LineData as _, parse_float};
+
+    #[test]
+    fn test_parse_line() {
+        use swfp::F64;
+
+        assert_eq!(
+            F64::parse_line("0x1p0"),
+            Ok(F64::from_bits(0x3FF0000000000000)),
+        );
+        assert_eq!(
+            F64::parse_line("0x1.4f1d73be27a31p+1 44"),
+            Ok(F64::from_bits(0x4004F1D73BE27A31)),
+        );
+        assert_eq!(
+            <[F64; 2]>::parse_line("0x1p0,-0x1p1"),
+            Ok([
+                F64::from_bits(0x3FF0000000000000),
+                F64::from_bits(0xC000000000000000),
+            ]),
+        );
+        assert_eq!(
+            <[F64; 2]>::parse_line("0x1p0 , 1.25"),
+            Ok([
+                F64::from_bits(0x3FF0000000000000),
+                F64::from_bits(0x3FF4000000000000),
+            ]),
+        );
+        assert_eq!(
+            <[F64; 2]>::parse_line("-0x8p-972,0x4p-128): Exception"),
+            Ok([
+                F64::from_bits(0x8360000000000000),
+                F64::from_bits(0x3810000000000000),
+            ]),
+        );
+        assert!(<[F64; 2]>::parse_line("0x1p0").is_err());
+        assert!(<[F64; 2]>::parse_line("0x1p0 0x1p1").is_err());
+        assert!(<[F64; 2]>::parse_line("0x1p0,0x1p1,0x1p2").is_err());
+        assert!(<[F64; 2]>::parse_line("0x1p0,").is_err());
+    }
 
     #[test]
     fn test_parse_float() {
@@ -226,5 +292,21 @@ mod tests {
             parse_float("0x1.a1cb9d879986bp-15"),
             Ok(swfp::F64::from_bits(0x3F0A1CB9D879986B)),
         );
+        assert_eq!(
+            parse_float("0x1.ffff36p-1f"),
+            Ok(swfp::F32::from_bits(0x3F7FFF9B)),
+        );
+        assert_eq!(
+            parse_float("0x11.e44c76af19d67p+1"),
+            Ok(swfp::F64::from_bits(0x4041E44C76AF19D6)),
+        );
+        assert_eq!(
+            parse_float("0x1.8p-1074"),
+            Ok(swfp::F64::from_bits(0x0000000000000002)),
+        );
+        assert!(parse_float::<swfp::F64>("0x1.00000000000018p-1060").is_err());
+        assert!(parse_float::<swfp::F64>("-qnan").unwrap().is_nan());
+        assert!(parse_float::<swfp::F64>("0x1p").is_err());
+        assert!(parse_float::<swfp::F64>("0x1pf").is_err());
     }
 }

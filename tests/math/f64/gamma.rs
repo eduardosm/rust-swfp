@@ -125,9 +125,15 @@ fn test_with(mut f: impl FnMut(F64)) {
 
     // Test data from core-math
     for x in crate::data::read_data_file::<F64>("core-math/binary64/tgamma.wc") {
+        if !x.is_finite() {
+            continue;
+        }
         f(x);
     }
     for x in crate::data::read_data_file::<F64>("core-math/binary64/lgamma.wc") {
+        if !x.is_finite() {
+            continue;
+        }
         f(x);
     }
 }

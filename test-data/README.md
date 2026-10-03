@@ -1,7 +1,7 @@
 # Test data
 
 Data in `core-math` comes from the [core-math project](https://gitlab.inria.fr/core-math/core-math/),
-commit 93d9f3bab7561cfb62f746f7e70c0888bb5c9a00
+commit 284b3b0e198042c38f5c30316f696786b10816b0 (Thu Oct 1 11:54:08 2026 -0700).
 
 Remaining test data, is generated with:
 
