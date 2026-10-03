@@ -264047,6 +264047,8 @@
 -0x1.1ec8576f37eap-1
 -0x1.4584c042cf425p-1
 -0x1.63e246c448c25p-1
+-0x1.fed2e52fc010cp-2
+-0x1.fda1ffd277fap-2
 # corner cases
 -0x1.cb3b399d747f3p-55
 # the following tests fail with a reduced value of eps in the fast path
@@ -264081,3 +264083,41 @@
 -0x1.3f3eaecf25357p-1
 -0x1.3e827a2cd6d51p-1
 -0x1.3e7be2791ee9dp-1
+0x1.061dad73ba15bp-2
+0x1.14e4006c1fccdp-2
+0x1.15090084b7ed4p-2
+0x1.61660126545b3p-2
+0x1.77b21dbc6f4fep-2
+0x1.82570a9cda5cdp-2
+0x1.96d70307e1d41p-2
+0x1.bc3e0e92cd3e7p-2
+0x1.bc4307d28f4e8p-2
+0x1.bd1f0408bc256p-2
+-0x1.fec3ffa9d096bp-2
+-0x1.febdfd6ab96b3p-2
+-0x1.fd8ffffcb234dp-2
+-0x1.fd7fffd6e4cc5p-2
+-0x1.f92afc8ff89e5p-2
+-0x1.f890f883edaf9p-2
+-0x1.f7f24362ed006p-2
+-0x1.f6b0fd63e933bp-2
+-0x1.ee66d790176dep-2
+-0x1.ed28f330a2501p-2
+-0x1.f012f91c49d8bp-2
+-0x1.efd2fb99e8bf6p-2
+-0x1.f925f9b46a603p-2
+-0x1.f6b4ec38646f1p-2
+-0x1.f00eb38a21074p-2
+-0x1.efd24c8de1a67p-2
+-0x1.ed3021e0d8da6p-2
+-0x1.fed3b859ed54ap-2
+-0x1.fda6fee396f8p-2
+# the following inputs defeat the rounding test condition
+# with a reduced error bound for |x| < 2^-4
+0x1.3a95b67c4d4c7p-11
+0x1.000000013c3b8p-11
+0x1.7e589686f199p-11
+0x1.7a120ca39455p-11
+0x1.78feb6e4ee24p-11
+0x1.744ad48948d7p-11
+0x1.718727cc154cp-11
