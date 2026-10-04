@@ -213,6 +213,85 @@ pub(super) fn gen_ln_gamma_poly(args: &[&str]) -> Result<String, String> {
     Ok(out)
 }
 
+pub(super) fn gen_ln_gamma_root(args: &[&str]) -> Result<String, String> {
+    let (fkind, name, x0_approx, radius_exp, num_coeffs): (AuxFloatKind, String, f64, i32, i32) =
+        arg_utils::parse_5_args(args)?;
+
+    // Refine the root of ln(|Γ(x)|) with Newton's method
+    let root_prec = 2048;
+    let mut x0 = rug::Float::with_val(root_prec, x0_approx);
+    for _ in 0..20 {
+        let step = x0.clone().ln_abs_gamma().0 / x0.clone().digamma();
+        x0 -= step;
+    }
+    let (ln_gamma_x0, gamma_x0_sign) = x0.clone().ln_abs_gamma();
+    if !ln_gamma_x0.is_zero() && ln_gamma_x0.get_exp().unwrap() > -(root_prec as i32 - 64) {
+        return Err(format!("root near {x0_approx} did not converge"));
+    }
+    if (x0.clone() - x0_approx).abs() > 1e-12 {
+        return Err(format!("root near {x0_approx} converged to {x0:e}"));
+    }
+
+    // The expansion is used in [x0 - r, x0 + r], which must not contain a pole
+    // and must be within a single binade, so subtracting x0 is exact.
+    let radius = rug::Float::with_val(64, rug::Float::i_exp(1, radius_exp));
+    let range_start = x0.clone() - &radius;
+    let range_end = x0.clone() + &radius;
+    if range_start.clone().ceil() != range_end.clone().ceil() {
+        return Err(format!("range around {x0_approx} contains a pole"));
+    }
+    if range_start.get_exp() != range_end.get_exp() {
+        return Err(format!("range around {x0_approx} spans multiple binades"));
+    }
+
+    let sign = match gamma_x0_sign {
+        std::cmp::Ordering::Less => -1,
+        _ => 1,
+    };
+
+    let prec = fkind.prec();
+    let x0_hi = rug::Float::with_val(prec, &x0);
+    let x0_lo = rug::Float::with_val(prec, x0.clone() - &x0_hi);
+
+    // Fit ln(|Γ(x0 + h)|) / h, minimizing relative error
+    let x0_digits = (f64::from(julia::big_prec(fkind)) * std::f64::consts::LOG10_2) as usize + 10;
+    let x0_str = x0.to_string_radix(10, Some(x0_digits));
+    let x0_big = format!("BigFloat(\"{x0_str}\")");
+    let func = format!(
+        "iszero(x) ? SpecialFunctions.digamma({x0_big}) : SpecialFunctions.logabsgamma({x0_big} + x)[1] / x"
+    );
+    let wfunc = "1 / abs(fx)";
+    let r = radius.to_f64();
+    let coeffs = julia::run_remez(fkind, &func, wfunc, (-r, r), num_coeffs - 1);
+
+    let mut out = String::new();
+
+    let render_field = |field: &str, value: &rug::Float, out: &mut String| {
+        write!(out, "{field}: ").unwrap();
+        render_aux_const_value(fkind, value, out);
+        out.push_str(", // ");
+        render_aux_const_dec_value(fkind, value, out);
+        out.push('\n');
+    };
+
+    writeln!(out, "const {name}: LnGammaRoot = LnGammaRoot {{").unwrap();
+    render_field("x0_hi", &x0_hi, &mut out);
+    render_field("x0_lo", &x0_lo, &mut out);
+    render_field("radius", &radius, &mut out);
+    writeln!(out, "sign: {sign},").unwrap();
+    writeln!(out, "k: &[").unwrap();
+    for coeff in coeffs.iter() {
+        render_aux_const_value(fkind, coeff, &mut out);
+        out.push_str(", // ");
+        render_aux_const_dec_value(fkind, coeff, &mut out);
+        out.push('\n');
+    }
+    writeln!(out, "],").unwrap();
+    writeln!(out, "}};").unwrap();
+
+    Ok(out)
+}
+
 pub(super) fn gen_gamma_lanczos_poly(args: &[&str]) -> Result<String, String> {
     let (fkind, poly_deg, g, range_start, range_end): (_, i32, f64, f64, f64) =
         arg_utils::parse_5_args(args)?;
