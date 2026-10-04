@@ -189,6 +189,7 @@ fn generate(param: &str) -> Result<String, RunError> {
         "asinh_poly" => approx::gen_asinh_poly(&args),
         "gamma_poly" => approx::gen_gamma_poly(&args),
         "ln_gamma_poly" => approx::gen_ln_gamma_poly(&args),
+        "ln_gamma_root" => approx::gen_ln_gamma_root(&args),
         "gamma_lanczos_poly" => approx::gen_gamma_lanczos_poly(&args),
 
         _ => {

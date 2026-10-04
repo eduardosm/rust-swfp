@@ -1,3 +1,4 @@
+use rand::RngExt as _;
 use swfp::{F64, Float as _, math::Gamma as _};
 
 use super::{check_exact, mk_normal, mk_subnormal, to_rug};
@@ -121,6 +122,34 @@ fn test_with(mut f: impl FnMut(F64)) {
             let x = F64::from_bits(root.to_bits() - bump);
             f(x);
         }
+
+        // Further away from the root
+        for shift in 14..48 {
+            for _ in 0..16 {
+                let bump = (1 << shift) | (rng.random::<u64>() & ((1 << shift) - 1));
+
+                let x = F64::from_bits(root.to_bits() + bump);
+                f(x);
+
+                let x = F64::from_bits(root.to_bits() - bump);
+                f(x);
+            }
+        }
+    }
+
+    // Hard-to-round cases of ln_gamma near its negative roots
+    let hard_cases = [
+        0xC003A7DC89BBC04B, // -2.456963611643038
+        0xC003A7FBE7319E44, // -2.4570234357850342
+        0xC003A7FC91A9B4CA, // -2.457024705878756
+        0xC003A7FD93C0E770, // -2.457026628803696
+        0xC005FB410BD22679, // -2.7476826594836976
+        0xC005FB410C2B1733, // -2.747682662072202
+        0xC005FB41122A6FCC, // -2.7476827067566543
+        0xC005FB4318131FD9, // -2.747686565478926
+    ];
+    for bits in hard_cases {
+        f(F64::from_bits(bits));
     }
 
     // Test data from core-math

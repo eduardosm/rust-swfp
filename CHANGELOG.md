@@ -18,6 +18,8 @@
 - Fixed integer overflow reachable by `F32::pow` with some values
 - Fixed `F32::atan2d` and `F32::atan2pi` producing incorrectly rounded results
   for some small `y/x` ratios
+- Fixed `F64::ln_gamma` producing incorrectly rounded results for some inputs
+  close to the negative roots
 
 ## 0.1.0 (2026-04-02)
 

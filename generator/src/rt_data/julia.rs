@@ -57,14 +57,32 @@ pub(super) fn run_and_render_remez(
     coeff_prefix: &str,
     out: &mut String,
 ) {
-    let big_prec = match fkind {
+    let coeffs = run_remez(fkind, func, wfunc, range, poly_deg);
+    for (i, coeff_value) in (0..).zip(coeffs) {
+        let coeff_name = format!("{coeff_prefix}{}", i + poly_i_print_off);
+        super::render_aux_const(fkind, &coeff_name, coeff_value, out);
+    }
+}
+
+pub(super) fn big_prec(fkind: AuxFloatKind) -> u32 {
+    match fkind {
         AuxFloatKind::SfpM16E8 => 1024,
         AuxFloatKind::SfpM32E16 => 1024,
         AuxFloatKind::SfpM64E16 => 1024,
         AuxFloatKind::SfpM128E16 => 1280,
         AuxFloatKind::SfpM192E16 => 1536,
-    };
-    let code = gen_remez_code(func, wfunc, range, poly_deg, big_prec);
+    }
+}
+
+/// Returns the coefficients of the polynomial, starting with the constant term.
+pub(super) fn run_remez(
+    fkind: AuxFloatKind,
+    func: &str,
+    wfunc: &str,
+    range: (f64, f64),
+    poly_deg: i32,
+) -> Vec<rug::Float> {
+    let code = gen_remez_code(func, wfunc, range, poly_deg, big_prec(fkind));
     let result = run_julia(&code).unwrap();
 
     let mut lines = result.split(|&c| c == b'\n');
@@ -73,12 +91,12 @@ pub(super) fn run_and_render_remez(
     let err = parse_f64(err_line);
     eprintln!("error = {err:e} = 2^({})", err.log2());
 
-    for i in 0..=poly_deg {
-        let coeff_line = lines.next().unwrap();
-        let coeff_value = parse_rug_float(coeff_line, fkind.prec());
-        let coeff_name = format!("{coeff_prefix}{}", i + poly_i_print_off);
-        super::render_aux_const(fkind, &coeff_name, coeff_value, out);
-    }
+    (0..=poly_deg)
+        .map(|_| {
+            let coeff_line = lines.next().unwrap();
+            parse_rug_float(coeff_line, fkind.prec())
+        })
+        .collect()
 }
 
 fn gen_remez_code(
