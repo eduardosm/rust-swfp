@@ -6,6 +6,7 @@ mod approx;
 mod arg_utils;
 mod consts;
 mod julia;
+mod pow5;
 mod reduce_pi_2;
 mod sollya;
 
@@ -175,6 +176,8 @@ fn generate(param: &str) -> Result<String, RunError> {
         "reduce_pi_2::medium_consts" => reduce_pi_2::gen_medium_consts(&args),
         "reduce_pi_2::frac_2_pi_large" => reduce_pi_2::gen_frac_2_pi_large(&args),
         "reduce_pi_2::frac_pi_2_medium" => reduce_pi_2::gen_frac_pi_2_medium(&args),
+
+        "pow5_table" => pow5::gen_pow5_table(&args),
 
         "inv_cbrt_poly" => approx::gen_inv_cbrt_poly(&args),
         "exp_m1_poly" => approx::gen_exp_m1_poly(&args),

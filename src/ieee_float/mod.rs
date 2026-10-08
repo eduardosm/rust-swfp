@@ -4,14 +4,13 @@ use crate::traits::{CastFrom, CastInto as _, Int, SInt, UInt};
 use crate::utils::{self, RoundLoss};
 use crate::{Float as _, FpStatus, Round, core_num};
 
+mod biguint;
+mod parse;
+
 pub(crate) trait Semantics: Copy {
     type Bits: UInt + From<Self::Mant> + CastFrom<Self::Exp>;
-    type Mant: UInt + CastFrom<Self::Bits> + Into<u128> + core::fmt::Debug;
-    type Exp: SInt
-        + CastFrom<Self::Bits>
-        + Into<i32>
-        + core::fmt::Debug
-        + core::ops::Div<Output = Self::Exp>;
+    type Mant: UInt + CastFrom<Self::Bits> + Into<u128>;
+    type Exp: SInt + CastFrom<Self::Bits> + Into<i32> + core::ops::Div<Output = Self::Exp>;
 
     const FORMAT: Format;
 
@@ -531,7 +530,7 @@ impl<S: Semantics> IeeeFloat<S> {
         s: &str,
         round: Round,
     ) -> Result<(Self, FpStatus), crate::ParseFloatError> {
-        core_num::dec2flt::dec2flt(s, round)
+        parse::parse(s.as_bytes(), round)
     }
 
     pub(crate) fn fmt_debug(self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -1696,49 +1695,6 @@ impl<S: Semantics> core::ops::Neg for IeeeFloat<S> {
                 ..self
             }
         }
-    }
-}
-
-impl<S: Semantics> core_num::dec2flt::Float for IeeeFloat<S> {
-    const SIG_BITS: u32 = S::MANT_FRAC_BITS;
-
-    type Mant = S::Mant;
-    type Exp = S::Exp;
-
-    #[inline]
-    fn zero(negative: bool) -> Self {
-        IeeeFloat::make_zero(negative)
-    }
-
-    #[inline]
-    fn inf(negative: bool) -> Self {
-        Self::make_inf(negative)
-    }
-
-    #[inline]
-    fn nan() -> Self {
-        Self::make_default_qnan()
-    }
-
-    #[inline]
-    fn overflow_value(negative: bool, round: Round) -> Self {
-        IeeeFloat::make_overflow_value(negative, round)
-    }
-
-    #[inline]
-    fn underflow_value(negative: bool, round: Round) -> Self {
-        IeeeFloat::make_underflow_value(negative, round)
-    }
-
-    #[inline]
-    fn build_value(
-        negative: bool,
-        exp: Self::Exp,
-        mant: Self::Mant,
-        loss: RoundLoss,
-        round: Round,
-    ) -> (Self, FpStatus) {
-        IeeeFloat::round_and_classify(negative, exp, mant, loss, round)
     }
 }
 

@@ -44,7 +44,6 @@
 )]
 
 mod bignum;
-pub(crate) mod dec2flt;
 mod diy_float;
 pub(crate) mod flt2dec;
 mod fmt;

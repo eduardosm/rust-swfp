@@ -75,6 +75,7 @@ pub(crate) trait Int:
     + core::ops::BitOrAssign
     + core::ops::ShlAssign<u32>
     + core::ops::ShrAssign<u32>
+    + core::fmt::Debug
 {
     const BITS: u32;
 
