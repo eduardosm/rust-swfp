@@ -571,25 +571,10 @@ fn check_to_int_round<F>(
     }
 }
 
-fn check_from_str_exact<F>(s: &str, expected_res: F)
-where
-    F: Float<Bits: std::fmt::Debug>,
-{
-    for round in ALL_ROUND_MODES {
-        let (value, status) = F::from_str_ex(s, round).unwrap();
-        assert_eq!(status, FpStatus::Ok);
-        assert_eq!(value.to_bits(), expected_res.to_bits());
-    }
-
-    assert_eq!(
-        s.parse::<F>().ok().unwrap().to_bits(),
-        expected_res.to_bits(),
-    );
-}
-
 fn test_from_str_specials<F>()
 where
     F: Float<Bits: std::fmt::Debug>,
+    F: core::str::FromStr<Err = swfp::ParseFloatError>,
 {
     let exact = [
         ("nan", F::NAN),
@@ -610,6 +595,65 @@ where
         ("1", F::from_int(1)),
         ("0.5", F::from_int(1).scalbn(-1)),
         ("1.5", F::from_int(3).scalbn(-1)),
+        // Syntax variations of exactly representable values
+        ("0.", F::ZERO),
+        (".0", F::ZERO),
+        ("00", F::ZERO),
+        ("000.000", F::ZERO),
+        ("0e0", F::ZERO),
+        ("0E0", F::ZERO),
+        ("0e+5", F::ZERO),
+        ("0.0e-5", F::ZERO),
+        ("0e99999999999999999999", F::ZERO),
+        ("0e-99999999999999999999", F::ZERO),
+        ("1.", F::from_int(1)),
+        (".5", F::from_int(1).scalbn(-1)),
+        ("0000001", F::from_int(1)),
+        ("1.0000000", F::from_int(1)),
+        ("1e0", F::from_int(1)),
+        ("1E0", F::from_int(1)),
+        ("1e+0", F::from_int(1)),
+        ("1e-0", F::from_int(1)),
+        ("1e000", F::from_int(1)),
+        ("10e-1", F::from_int(1)),
+        ("0.1e1", F::from_int(1)),
+        ("100e-2", F::from_int(1)),
+        ("0.01E+2", F::from_int(1)),
+        (".001e3", F::from_int(1)),
+        ("1.e1", F::from_int(10)),
+        ("5.e-1", F::from_int(1).scalbn(-1)),
+        // More than 38 significant digits, the extra ones being zeros
+        (
+            "000000000000000000000000000000000000000000000000001",
+            F::from_int(1),
+        ),
+        (
+            "1.00000000000000000000000000000000000000000000000000",
+            F::from_int(1),
+        ),
+        (
+            "100000000000000000000000000000000000000000000000000e-50",
+            F::from_int(1),
+        ),
+        (
+            "0.00000000000000000000000000000000000000000000000001e50",
+            F::from_int(1),
+        ),
+        // Other exactly representable values
+        ("2.5", F::from_int(5).scalbn(-1)),
+        ("25e-1", F::from_int(5).scalbn(-1)),
+        ("0.25", F::from_int(1).scalbn(-2)),
+        ("3.5", F::from_int(7).scalbn(-1)),
+        ("0.375", F::from_int(3).scalbn(-3)),
+        ("12", F::from_int(12)),
+        ("1.2e1", F::from_int(12)),
+        ("112", F::from_int(112)),
+        ("1.12e2", F::from_int(112)),
+        ("11200E-2", F::from_int(112)),
+        ("0.0078125", F::from_int(1).scalbn(-7)),
+        ("7.8125e-3", F::from_int(1).scalbn(-7)),
+        ("0.001953125", F::from_int(1).scalbn(-9)),
+        ("1.953125e-3", F::from_int(1).scalbn(-9)),
     ];
 
     for &(s, value) in exact.iter() {
@@ -617,6 +661,132 @@ where
         check_from_str_exact(&format!("+{s}"), value);
         check_from_str_exact(&format!("-{s}"), -value);
     }
+
+    check_from_str_exact(
+        &format!("3{}e-1000000", "0".repeat(1_000_000)),
+        F::from_int(3),
+    );
+    check_from_str_exact(
+        &format!("0.{}3e1000000", "0".repeat(1_000_000 - 1)),
+        F::from_int(3),
+    );
+
+    let invalid = [
+        "",
+        " ",
+        "+",
+        "-",
+        ".",
+        "+.",
+        "-.",
+        "e",
+        "E",
+        "e1",
+        ".e1",
+        "+e1",
+        "-.e1",
+        "1e",
+        "1E",
+        "1e+",
+        "1e-",
+        "1.e",
+        "1.5e",
+        "1.5e+",
+        "1e+-1",
+        "1e-+1",
+        "1e++1",
+        "1ee1",
+        "1e1e1",
+        "1e1.5",
+        "1..5",
+        "1.5.",
+        "..5",
+        "1.2.3",
+        "++1",
+        "--1",
+        "+-1",
+        "-+1",
+        " 1",
+        "1 ",
+        "\t1",
+        "1\n",
+        "1_000",
+        "1,5",
+        "0x10",
+        "0x1p0",
+        "0b1",
+        "1f",
+        "1.0f64",
+        "\u{FF11}",
+        "\u{0661}",
+        "1\0",
+        "in",
+        "inf.",
+        "infin",
+        "infinit",
+        "infinite",
+        "infinityy",
+        "inf1",
+        "1inf",
+        "+-inf",
+        "--inf",
+        " inf",
+        "inf ",
+        "na",
+        "nann",
+        "nan1",
+        "nan()",
+        "nan(1)",
+        "snan",
+        "qnan",
+        "+-nan",
+        " nan",
+        "nan ",
+    ];
+
+    for &s in invalid.iter() {
+        check_from_str_invalid::<F>(s);
+        if !s.starts_with(['+', '-']) {
+            check_from_str_invalid::<F>(&format!("+{s}"));
+            check_from_str_invalid::<F>(&format!("-{s}"));
+        }
+    }
+}
+
+fn check_from_str_exact<F>(s: &str, expected_res: F)
+where
+    F: Float<Bits: std::fmt::Debug>,
+{
+    for round in ALL_ROUND_MODES {
+        let (value, status) = F::from_str_ex(s, round).unwrap();
+        assert_eq!(status, FpStatus::Ok);
+        assert_eq!(value.to_bits(), expected_res.to_bits());
+    }
+
+    assert_eq!(
+        s.parse::<F>().ok().unwrap().to_bits(),
+        expected_res.to_bits(),
+    );
+}
+
+fn check_from_str_invalid<F>(s: &str)
+where
+    F: Float<Bits: std::fmt::Debug>,
+    F: core::str::FromStr<Err = swfp::ParseFloatError>,
+{
+    #[track_caller]
+    fn check<T: core::fmt::Debug>(r: Result<T, swfp::ParseFloatError>, s: &str) {
+        let err_str = r.unwrap_err().to_string();
+        if s.is_empty() {
+            assert!(err_str.contains("empty string"));
+        } else {
+            assert!(err_str.contains("invalid float"));
+        }
+    }
+    for round in ALL_ROUND_MODES {
+        check(F::from_str_ex(s, round), s);
+    }
+    check(s.parse::<F>(), s);
 }
 
 fn check_from_str_round<F>(s: &str, expected_tz: F, expected_az: F, loss: Loss)

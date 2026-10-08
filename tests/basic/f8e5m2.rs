@@ -3,8 +3,9 @@ use std::num::FpCategory;
 use swfp::{Float as _, FloatConvertFrom, FpStatus, Round};
 
 use crate::{
-    ALL_ROUND_MODES, Loss, check_category, check_compare, check_round_int_exact,
-    check_round_int_round, mk_f8e5m2, test_from_str_specials,
+    ALL_ROUND_MODES, Loss, check_category, check_compare, check_from_str_exact,
+    check_from_str_round, check_round_int_exact, check_round_int_round, mk_f8e5m2,
+    test_from_str_specials,
 };
 
 #[test]
@@ -107,6 +108,121 @@ fn test_convert_to_self() {
 #[test]
 fn test_from_str() {
     test_from_str_specials::<swfp::F8E5M2>();
+
+    let exact = [
+        ("57344", swfp::F8E5M2::from_bits(0x7B)),
+        ("5.7344e4", swfp::F8E5M2::from_bits(0x7B)),
+        ("0.0000152587890625", swfp::F8E5M2::from_bits(0x01)),
+        ("4.57763671875e-5", swfp::F8E5M2::from_bits(0x03)),
+        ("0.00006103515625", swfp::F8E5M2::from_bits(0x04)),
+    ];
+
+    for &(s, value) in exact.iter() {
+        check_from_str_exact(s, value);
+        check_from_str_exact(&format!("+{s}"), value);
+        check_from_str_exact(&format!("-{s}"), -value);
+    }
+
+    // (input, rounded toward zero, rounded away from zero, loss)
+    let inexact = [
+        // Around the overflow threshold
+        (
+            "61439.999999999999999999999999999999999999999999999",
+            0x7B,
+            0x7C,
+            Loss::HalfDown,
+        ),
+        ("61440", 0x7B, 0x7C, Loss::HalfOdd),
+        (
+            "61440.0000000000000000000000000000000000000000000001",
+            0x7B,
+            0x7C,
+            Loss::HalfUp,
+        ),
+        (
+            "65535.999999999999999999999999999999999999999999999",
+            0x7B,
+            0x7C,
+            Loss::HalfUp,
+        ),
+        ("65536", 0x7B, 0x7C, Loss::Overflow),
+        ("1e99999999999999999999", 0x7B, 0x7C, Loss::Overflow),
+        ("1e9223372036854775807", 0x7B, 0x7C, Loss::Overflow),
+        // Around the underflow threshold
+        (
+            "0.00000762939453124999999999999999999999999999999999999999999999",
+            0x00,
+            0x01,
+            Loss::HalfDown,
+        ),
+        ("0.00000762939453125", 0x00, 0x01, Loss::HalfEven),
+        (
+            "0.000007629394531250000000000000000000000000000000000000000000001",
+            0x00,
+            0x01,
+            Loss::HalfUp,
+        ),
+        ("0.00002288818359375", 0x01, 0x02, Loss::HalfOdd),
+        (
+            "5.340576171874999999999999999999999999999999999999999999999e-5",
+            0x03,
+            0x04,
+            Loss::HalfDown,
+        ),
+        ("5.340576171875e-5", 0x03, 0x04, Loss::HalfOdd),
+        (
+            "5.3405761718750000000000000000000000000000000000000000000001e-5",
+            0x03,
+            0x04,
+            Loss::HalfUp,
+        ),
+        ("1e-99999999999999999999", 0x00, 0x01, Loss::HalfDown),
+        ("1e-9223372036854775808", 0x00, 0x01, Loss::HalfDown),
+        // Ties in the normal range
+        ("9", 0x48, 0x49, Loss::HalfEven),
+        ("11", 0x49, 0x4A, Loss::HalfOdd),
+        ("72", 0x54, 0x55, Loss::HalfEven),
+        ("88", 0x55, 0x56, Loss::HalfOdd),
+        (
+            "1.124999999999999999999999999999999999999999999999",
+            0x3C,
+            0x3D,
+            Loss::HalfDown,
+        ),
+        ("1.125", 0x3C, 0x3D, Loss::HalfEven),
+        (
+            "1.1250000000000000000000000000000000000000000000001",
+            0x3C,
+            0x3D,
+            Loss::HalfUp,
+        ),
+        ("1.375", 0x3D, 0x3E, Loss::HalfOdd),
+        // Very close to representable values
+        (
+            "0.99999999999999999999999999999999999999999999999999",
+            0x3B,
+            0x3C,
+            Loss::HalfUp,
+        ),
+        (
+            "1.00000000000000000000000000000000000000000000000001",
+            0x3C,
+            0x3D,
+            Loss::HalfDown,
+        ),
+        // Other values
+        ("0.1", 0x2E, 0x2F, Loss::HalfDown),
+        ("3.3", 0x42, 0x43, Loss::HalfUp),
+        ("1e4", 0x70, 0x71, Loss::HalfUp),
+    ];
+
+    for &(s, tz, az, loss) in inexact.iter() {
+        let tz = swfp::F8E5M2::from_bits(tz);
+        let az = swfp::F8E5M2::from_bits(az);
+        check_from_str_round(s, tz, az, loss);
+        check_from_str_round(&format!("+{s}"), tz, az, loss);
+        check_from_str_round(&format!("-{s}"), -tz, -az, loss);
+    }
 }
 
 #[test]

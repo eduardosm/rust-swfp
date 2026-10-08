@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 (unreleased)
+
+### Changed
+
+- Performance of floating point parsing has been improved.
+
+### Fixed
+
+- Fixed `from_str` returning infinity or zero for numbers with a very large
+  number of leading or trailing zeros that are cancelled out by the exponent.
+
 ## 0.1.1 (2026-10-05)
 
 ### Fixed

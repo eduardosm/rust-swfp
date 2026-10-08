@@ -120,37 +120,21 @@ fn test_to_uint() {
 fn test_from_str() {
     test_from_str_specials::<swfp::F16>();
 
-    check_from_str_round(
-        "1e5",
-        mk_f16(false, 15, 0x3FF),
-        swfp::F16::INFINITY,
-        Loss::Overflow,
-    );
-    check_from_str_round(
-        "111111",
-        mk_f16(false, 15, 0x3FF),
-        swfp::F16::INFINITY,
-        Loss::Overflow,
-    );
+    let exact = [
+        ("65504", swfp::F16::from_bits(0x7BFF)),
+        ("6.5504e4", swfp::F16::from_bits(0x7BFF)),
+        ("0.000060975551605224609375", swfp::F16::from_bits(0x03FF)),
+        ("6.103515625e-5", swfp::F16::from_bits(0x0400)),
+        ("5.9604644775390625E-8", swfp::F16::from_bits(0x0001)),
+        ("1023.5", swfp::F16::from_bits(0x63FF)),
+        ("0.99951171875", swfp::F16::from_bits(0x3BFF)),
+    ];
 
-    check_from_str_round(
-        "-1e5",
-        mk_f16(true, 15, 0x3FF),
-        -swfp::F16::INFINITY,
-        Loss::Overflow,
-    );
-    check_from_str_round(
-        "-111111",
-        mk_f16(true, 15, 0x3FF),
-        -swfp::F16::INFINITY,
-        Loss::Overflow,
-    );
-    check_from_str_round(
-        "3.4028e38",
-        mk_f16(false, 15, 0x3FF),
-        swfp::F16::INFINITY,
-        Loss::Overflow,
-    );
+    for &(s, value) in exact.iter() {
+        check_from_str_exact(s, value);
+        check_from_str_exact(&format!("+{s}"), value);
+        check_from_str_exact(&format!("-{s}"), -value);
+    }
 
     for e in -14..=15 {
         for m in 0..(1 << 10) {
@@ -169,6 +153,133 @@ fn test_from_str() {
         let s = format!("{:.30e}", rug::Float::with_val(11, m) >> (14 + 10));
         check_from_str_exact(&s, value);
         check_from_str_exact(&format!("-{s}"), -value);
+    }
+
+    // (input, rounded toward zero, rounded away from zero, loss)
+    let inexact = [
+        // Around the overflow threshold
+        (
+            "65519.999999999999999999999999999999999999999999999",
+            0x7BFF,
+            0x7C00,
+            Loss::HalfDown,
+        ),
+        ("65520", 0x7BFF, 0x7C00, Loss::HalfOdd),
+        (
+            "65520.0000000000000000000000000000000000000000000001",
+            0x7BFF,
+            0x7C00,
+            Loss::HalfUp,
+        ),
+        (
+            "65535.999999999999999999999999999999999999999999999",
+            0x7BFF,
+            0x7C00,
+            Loss::HalfUp,
+        ),
+        ("65536", 0x7BFF, 0x7C00, Loss::Overflow),
+        ("1e5", 0x7BFF, 0x7C00, Loss::Overflow),
+        ("111111", 0x7BFF, 0x7C00, Loss::Overflow),
+        ("3.4028e38", 0x7BFF, 0x7C00, Loss::Overflow),
+        ("1e99999999999999999999", 0x7BFF, 0x7C00, Loss::Overflow),
+        ("1e9223372036854775807", 0x7BFF, 0x7C00, Loss::Overflow),
+        // Around the underflow threshold
+        (
+            "2.98023223876953124999999999999999999999999999999999999999999999e-8",
+            0x0000,
+            0x0001,
+            Loss::HalfDown,
+        ),
+        ("2.98023223876953125e-8", 0x0000, 0x0001, Loss::HalfEven),
+        (
+            "2.980232238769531250000000000000000000000000000000000000000000001e-8",
+            0x0000,
+            0x0001,
+            Loss::HalfUp,
+        ),
+        ("8.94069671630859375e-8", 0x0001, 0x0002, Loss::HalfOdd),
+        ("1e-8", 0x0000, 0x0001, Loss::HalfDown),
+        ("5.96e-8", 0x0000, 0x0001, Loss::HalfUp),
+        ("5.97e-8", 0x0001, 0x0002, Loss::HalfDown),
+        (
+            "6.10053539276123046874999999999999999999999999999999999999999999999e-5",
+            0x03FF,
+            0x0400,
+            Loss::HalfDown,
+        ),
+        ("6.10053539276123046875e-5", 0x03FF, 0x0400, Loss::HalfOdd),
+        (
+            "6.100535392761230468750000000000000000000000000000000000000000000001e-5",
+            0x03FF,
+            0x0400,
+            Loss::HalfUp,
+        ),
+        ("1e-99999999999999999999", 0x0000, 0x0001, Loss::HalfDown),
+        ("1e-9223372036854775808", 0x0000, 0x0001, Loss::HalfDown),
+        // Ties in the normal range
+        (
+            "2048.999999999999999999999999999999999999999999999",
+            0x6800,
+            0x6801,
+            Loss::HalfDown,
+        ),
+        ("2049", 0x6800, 0x6801, Loss::HalfEven),
+        (
+            "2049.0000000000000000000000000000000000000000000001",
+            0x6800,
+            0x6801,
+            Loss::HalfUp,
+        ),
+        ("2051", 0x6801, 0x6802, Loss::HalfOdd),
+        ("2047.5", 0x67FF, 0x6800, Loss::HalfOdd),
+        (
+            "1.00048828124999999999999999999999999999999999999999999999",
+            0x3C00,
+            0x3C01,
+            Loss::HalfDown,
+        ),
+        ("1.00048828125", 0x3C00, 0x3C01, Loss::HalfEven),
+        (
+            "1.000488281250000000000000000000000000000000000000000000001",
+            0x3C00,
+            0x3C01,
+            Loss::HalfUp,
+        ),
+        ("1.00146484375", 0x3C01, 0x3C02, Loss::HalfOdd),
+        // Other values
+        ("0.1", 0x2E66, 0x2E67, Loss::HalfDown),
+        ("0.2", 0x3266, 0x3267, Loss::HalfDown),
+        ("0.3", 0x34CC, 0x34CD, Loss::HalfUp),
+        ("0.7", 0x3999, 0x399A, Loss::HalfUp),
+        (
+            "3.14159265358979323846264338327950288",
+            0x4248,
+            0x4249,
+            Loss::HalfDown,
+        ),
+        ("1e-5", 0x00A7, 0x00A8, Loss::HalfUp),
+        ("12345.678", 0x7207, 0x7208, Loss::HalfDown),
+        // Very close to representable values
+        (
+            "0.99999999999999999999999999999999999999999999999999",
+            0x3BFF,
+            0x3C00,
+            Loss::HalfUp,
+        ),
+        (
+            "1.00000000000000000000000000000000000000000000000001",
+            0x3C00,
+            0x3C01,
+            Loss::HalfDown,
+        ),
+    ];
+
+    for &(s, tz, az, loss) in inexact.iter() {
+        let tz = swfp::F16::from_bits(tz);
+        let az = swfp::F16::from_bits(az);
+        check_from_str_round(s, tz, az, loss);
+        check_from_str_round(&format!("+{s}"), tz, az, loss);
+        check_from_str_round(&format!("-{s}"), -tz, -az, loss);
     }
 }
 
