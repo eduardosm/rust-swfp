@@ -93,9 +93,9 @@ fn test_convert_to_self() {
             let new_bits = new_value.to_bits();
 
             let (expected_status, expected_bits) = if value.is_nan() && bits & 0b10 == 0 {
-                (FpStatus::Invalid, bits | 0b10)
+                (FpStatus::INVALID, bits | 0b10)
             } else {
-                (FpStatus::Ok, bits)
+                (FpStatus::OK, bits)
             };
             assert_eq!(status, expected_status);
             if new_bits != expected_bits {
@@ -259,7 +259,7 @@ fn result_with_f32(
     round: Round,
 ) -> (swfp::F8E5M2, FpStatus) {
     let (conv_value, conv_status) = swfp::F8E5M2::convert_from_ex(value, round);
-    if conv_status == FpStatus::Ok {
+    if conv_status == FpStatus::OK {
         (conv_value, status)
     } else {
         (conv_value, conv_status)
@@ -279,19 +279,19 @@ fn test_binary_op_exhaustive() {
             for round in ALL_ROUND_MODES {
                 if (a.is_nan() && a_bits & 0b10 == 0) || (b.is_nan() && b_bits & 0b10 == 0) {
                     let (r, status) = a.add_ex(b, round);
-                    assert_eq!(status, FpStatus::Invalid);
+                    assert_eq!(status, FpStatus::INVALID);
                     assert!(r.is_nan());
 
                     let (r, status) = a.sub_ex(b, round);
-                    assert_eq!(status, FpStatus::Invalid);
+                    assert_eq!(status, FpStatus::INVALID);
                     assert!(r.is_nan());
 
                     let (r, status) = a.mul_ex(b, round);
-                    assert_eq!(status, FpStatus::Invalid);
+                    assert_eq!(status, FpStatus::INVALID);
                     assert!(r.is_nan());
 
                     let (r, status) = a.div_ex(b, round);
-                    assert_eq!(status, FpStatus::Invalid);
+                    assert_eq!(status, FpStatus::INVALID);
                     assert!(r.is_nan());
                 } else {
                     let (expected_r, expected_status) =

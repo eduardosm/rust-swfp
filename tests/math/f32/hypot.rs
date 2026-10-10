@@ -85,6 +85,12 @@ fn test_with(mut f: impl FnMut(F32, F32)) {
         }
     }
 
+    // Results between the largest subnormal number and the smallest normal
+    // number, around the points that determine whether they are tiny.
+    for my in [2896, 2897, 3173, 3547, 3548, 3600] {
+        f(mk_subnormal(0x7FFFFF, false), mk_subnormal(my, false));
+    }
+
     // Test data from core-math
     for [x, y] in crate::data::read_data_file::<[F32; 2]>("core-math/binary32/hypotf.wc") {
         if x.is_nan() || y.is_nan() {

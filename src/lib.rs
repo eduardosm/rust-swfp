@@ -88,21 +88,114 @@ pub enum Round {
 }
 
 /// Indicates the status of a floating-point operation.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum FpStatus {
-    /// The operation is valid and the result is exact.
-    Ok,
+///
+/// It is a set of flags that follow the semantics of the exceptions defined by
+/// IEEE 754 under default exception handling. More than one flag can be set at
+/// the same time and no flag is set ([`FpStatus::OK`]) when the operation is
+/// valid and the result is exact.
+///
+/// Flags can be combined with the `|` operator and tested with
+/// [`FpStatus::contains`] or the `&` operator.
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct FpStatus(u8);
+
+impl FpStatus {
+    /// The operation is valid and the result is exact (no flag is set).
+    pub const OK: Self = Self(0);
     /// The operation is not valid or an operand is a signaling NaN.
-    Invalid,
-    /// The result is larger than the maximum representable value.
-    Overflow,
-    /// The result is not exact and has been rounded into zero or a
-    /// subnormal value.
-    Underflow,
-    /// The result is not exact and has been rounded into a normal value.
-    Inexact,
-    /// Attempted to use a zero divisor.
-    DivByZero,
+    ///
+    /// This is also the status of conversions to integer when the input is
+    /// NaN, infinity or out of range.
+    pub const INVALID: Self = Self(0b0000_0001);
+    /// Attempted to divide a finite non-zero value by zero.
+    pub const DIV_BY_ZERO: Self = Self(0b0000_0010);
+    /// The rounded result is larger in magnitude than the maximum
+    /// representable finite value.
+    ///
+    /// [`FpStatus::INEXACT`] is always set together with this flag.
+    pub const OVERFLOW: Self = Self(0b0000_0100);
+    /// The result is not exact and it is tiny.
+    ///
+    /// Tininess is detected after rounding: a non-zero result is tiny when it
+    /// would be smaller in magnitude than the smallest normal value after
+    /// being rounded as if the exponent range were unbounded.
+    ///
+    /// [`FpStatus::INEXACT`] is always set together with this flag.
+    pub const UNDERFLOW: Self = Self(0b0000_1000);
+    /// The result is not exact and has been rounded.
+    pub const INEXACT: Self = Self(0b0001_0000);
+
+    /// Returns whether no flag is set.
+    #[inline]
+    pub fn is_ok(self) -> bool {
+        self == Self::OK
+    }
+
+    /// Returns whether all the flags of `other` are set in `self`.
+    #[inline]
+    pub fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+}
+
+impl core::fmt::Debug for FpStatus {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        const FLAGS: [(FpStatus, &str); 5] = [
+            (FpStatus::INVALID, "INVALID"),
+            (FpStatus::DIV_BY_ZERO, "DIV_BY_ZERO"),
+            (FpStatus::OVERFLOW, "OVERFLOW"),
+            (FpStatus::UNDERFLOW, "UNDERFLOW"),
+            (FpStatus::INEXACT, "INEXACT"),
+        ];
+
+        if self.is_ok() {
+            return f.write_str("OK");
+        }
+
+        let mut first = true;
+        for (flag, name) in FLAGS {
+            if self.contains(flag) {
+                if !first {
+                    f.write_str(" | ")?;
+                }
+                f.write_str(name)?;
+                first = false;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl core::ops::BitAnd for FpStatus {
+    type Output = Self;
+
+    #[inline]
+    fn bitand(self, rhs: Self) -> Self {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl core::ops::BitAndAssign for FpStatus {
+    #[inline]
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.0 &= rhs.0;
+    }
+}
+
+impl core::ops::BitOr for FpStatus {
+    type Output = Self;
+
+    #[inline]
+    fn bitor(self, rhs: Self) -> Self {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl core::ops::BitOrAssign for FpStatus {
+    #[inline]
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
 }
 
 mod sealed {
@@ -229,10 +322,8 @@ pub trait Float:
     /// Converts `self` to a `bits`-bit unsigned integer rounding according to
     /// `round`.
     ///
-    /// Returns `None` if `self` is NaN, infinity or out of range.
-    ///
-    /// A status of [`FpStatus::Invalid`] is also returned if `self` is a quiet
-    /// NaN.
+    /// Returns `None` and a status of [`FpStatus::INVALID`] if `self` is NaN,
+    /// infinity or out of range.
     ///
     /// Panics if `bits` is less than 1 or greater than 128.
     fn to_uint_ex(self, bits: u32, round: Round) -> (Option<u128>, FpStatus);
@@ -250,10 +341,8 @@ pub trait Float:
     /// Converts `self` to a `bits`-bit signed integer rounding according to
     /// `round`.
     ///
-    /// Returns `None` if `self` is NaN, infinity or out of range.
-    ///
-    /// A status of [`FpStatus::Invalid`] is also returned if `self` is a quiet
-    /// NaN.
+    /// Returns `None` and a status of [`FpStatus::INVALID`] if `self` is NaN,
+    /// infinity or out of range.
     ///
     /// Panics if `bits` is less than 1 or greater than 128.
     fn to_int_ex(self, bits: u32, round: Round) -> (Option<i128>, FpStatus);

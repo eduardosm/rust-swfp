@@ -79,9 +79,9 @@ fn test_convert_to_self() {
                 let new_bits = new_value.to_bits();
 
                 let (expected_status, expected_bits) = if value.is_nan() && bits & (1 << 22) == 0 {
-                    (FpStatus::Invalid, bits | (1 << 22))
+                    (FpStatus::INVALID, bits | (1 << 22))
                 } else {
-                    (FpStatus::Ok, bits)
+                    (FpStatus::OK, bits)
                 };
                 assert_eq!(status, expected_status);
                 assert_eq!(new_bits, expected_bits);
@@ -177,16 +177,16 @@ fn test_from_int() {
 
 #[test]
 fn test_to_uint() {
-    check_to_uint_exact(swfp::F32::NAN, (None, FpStatus::Invalid));
-    check_to_uint_exact(swfp::F32::INFINITY, (None, FpStatus::Overflow));
-    check_to_uint_exact(-swfp::F32::INFINITY, (None, FpStatus::Overflow));
+    check_to_uint_exact(swfp::F32::NAN, (None, FpStatus::INVALID));
+    check_to_uint_exact(swfp::F32::INFINITY, (None, FpStatus::INVALID));
+    check_to_uint_exact(-swfp::F32::INFINITY, (None, FpStatus::INVALID));
 
-    check_to_uint_exact(swfp::F32::ZERO, (Some(0), FpStatus::Ok));
-    check_to_uint_exact(-swfp::F32::ZERO, (Some(0), FpStatus::Inexact));
+    check_to_uint_exact(swfp::F32::ZERO, (Some(0), FpStatus::OK));
+    check_to_uint_exact(-swfp::F32::ZERO, (Some(0), FpStatus::OK));
 
     for e in 0..=127 {
-        check_to_uint_exact(mk_f32(false, e, 0), (Some(1 << e), FpStatus::Ok));
-        check_to_uint_exact(mk_f32(true, e, 0), (None, FpStatus::Overflow));
+        check_to_uint_exact(mk_f32(false, e, 0), (Some(1 << e), FpStatus::OK));
+        check_to_uint_exact(mk_f32(true, e, 0), (None, FpStatus::INVALID));
     }
 
     for hi in 0..=255 {
@@ -194,9 +194,9 @@ fn test_to_uint() {
             let m = (hi << (23 - 8)) | lo;
             check_to_uint_exact(
                 mk_f32(false, 23, m),
-                (Some(u128::from(m | (1 << 23))), FpStatus::Ok),
+                (Some(u128::from(m | (1 << 23))), FpStatus::OK),
             );
-            check_to_uint_exact(mk_f32(true, 23, m), (None, FpStatus::Overflow));
+            check_to_uint_exact(mk_f32(true, 23, m), (None, FpStatus::INVALID));
         }
     }
 
@@ -204,34 +204,58 @@ fn test_to_uint() {
         let m = 0x7FEFEF;
         check_to_uint_exact(
             mk_f32(false, e, m),
-            (Some(u128::from(m | (1 << 23)) << (e - 23)), FpStatus::Ok),
+            (Some(u128::from(m | (1 << 23)) << (e - 23)), FpStatus::OK),
         );
-        check_to_uint_exact(mk_f32(true, e, m), (None, FpStatus::Overflow));
+        check_to_uint_exact(mk_f32(true, e, m), (None, FpStatus::INVALID));
     }
 
     check_to_uint_round(
         mk_f32(false, -1, 0),
-        (Some(0), FpStatus::Inexact),
-        (Some(1), FpStatus::Inexact),
+        (Some(0), FpStatus::INEXACT),
+        (Some(1), FpStatus::INEXACT),
+        Loss::HalfEven,
+    );
+    check_to_uint_round(
+        mk_f32(true, -1, 0),
+        (Some(0), FpStatus::INEXACT),
+        (None, FpStatus::INVALID),
         Loss::HalfEven,
     );
     check_to_uint_round(
         mk_f32(false, 0, 1 << 22),
-        (Some(1), FpStatus::Inexact),
-        (Some(2), FpStatus::Inexact),
+        (Some(1), FpStatus::INEXACT),
+        (Some(2), FpStatus::INEXACT),
+        Loss::HalfOdd,
+    );
+    check_to_uint_round(
+        mk_f32(true, 0, 1 << 22),
+        (None, FpStatus::INVALID),
+        (None, FpStatus::INVALID),
         Loss::HalfOdd,
     );
     check_to_uint_round(
         mk_f32(false, -1, 1 << 22),
-        (Some(0), FpStatus::Inexact),
-        (Some(1), FpStatus::Inexact),
+        (Some(0), FpStatus::INEXACT),
+        (Some(1), FpStatus::INEXACT),
+        Loss::HalfUp,
+    );
+    check_to_uint_round(
+        mk_f32(true, -1, 1 << 22),
+        (Some(0), FpStatus::INEXACT),
+        (None, FpStatus::INVALID),
         Loss::HalfUp,
     );
     for e in -126..=-2 {
         check_to_uint_round(
             mk_f32(false, e, 0),
-            (Some(0), FpStatus::Inexact),
-            (Some(1), FpStatus::Inexact),
+            (Some(0), FpStatus::INEXACT),
+            (Some(1), FpStatus::INEXACT),
+            Loss::HalfDown,
+        );
+        check_to_uint_round(
+            mk_f32(true, e, 0),
+            (Some(0), FpStatus::INEXACT),
+            (None, FpStatus::INVALID),
             Loss::HalfDown,
         );
     }
@@ -239,23 +263,23 @@ fn test_to_uint() {
 
 #[test]
 fn test_to_int() {
-    check_to_int_exact(swfp::F32::NAN, (None, FpStatus::Invalid));
-    check_to_int_exact(swfp::F32::INFINITY, (None, FpStatus::Overflow));
-    check_to_int_exact(-swfp::F32::INFINITY, (None, FpStatus::Overflow));
+    check_to_int_exact(swfp::F32::NAN, (None, FpStatus::INVALID));
+    check_to_int_exact(swfp::F32::INFINITY, (None, FpStatus::INVALID));
+    check_to_int_exact(-swfp::F32::INFINITY, (None, FpStatus::INVALID));
 
-    check_to_int_exact(swfp::F32::ZERO, (Some(0), FpStatus::Ok));
-    check_to_int_exact(-swfp::F32::ZERO, (Some(0), FpStatus::Inexact));
+    check_to_int_exact(swfp::F32::ZERO, (Some(0), FpStatus::OK));
+    check_to_int_exact(-swfp::F32::ZERO, (Some(0), FpStatus::OK));
 
     for e in 0..=127 {
         check_to_int_exact(
             mk_f32(false, e, 0),
             if e == 127 {
-                (None, FpStatus::Overflow)
+                (None, FpStatus::INVALID)
             } else {
-                (Some(1 << e), FpStatus::Ok)
+                (Some(1 << e), FpStatus::OK)
             },
         );
-        check_to_int_exact(mk_f32(true, e, 0), (Some(-1 << e), FpStatus::Ok));
+        check_to_int_exact(mk_f32(true, e, 0), (Some(-1 << e), FpStatus::OK));
     }
 
     for hi in 0..=255 {
@@ -263,11 +287,11 @@ fn test_to_int() {
             let m = (hi << (23 - 8)) | lo;
             check_to_int_exact(
                 mk_f32(false, 23, m),
-                (Some(i128::from(m | (1 << 23))), FpStatus::Ok),
+                (Some(i128::from(m | (1 << 23))), FpStatus::OK),
             );
             check_to_int_exact(
                 mk_f32(true, 23, m),
-                (Some(-i128::from(m | (1 << 23))), FpStatus::Ok),
+                (Some(-i128::from(m | (1 << 23))), FpStatus::OK),
             );
         }
     }
@@ -276,61 +300,61 @@ fn test_to_int() {
         let m = 0x7FEFEF;
         check_to_int_exact(
             mk_f32(false, e, m),
-            (Some(i128::from(m | (1 << 23)) << (e - 23)), FpStatus::Ok),
+            (Some(i128::from(m | (1 << 23)) << (e - 23)), FpStatus::OK),
         );
         check_to_int_exact(
             mk_f32(true, e, m),
-            (Some(-i128::from(m | (1 << 23)) << (e - 23)), FpStatus::Ok),
+            (Some(-i128::from(m | (1 << 23)) << (e - 23)), FpStatus::OK),
         );
     }
 
     check_to_int_round(
         mk_f32(false, -1, 0),
-        (Some(0), FpStatus::Inexact),
-        (Some(1), FpStatus::Inexact),
+        (Some(0), FpStatus::INEXACT),
+        (Some(1), FpStatus::INEXACT),
         Loss::HalfEven,
     );
     check_to_int_round(
         mk_f32(true, -1, 0),
-        (Some(0), FpStatus::Inexact),
-        (Some(-1), FpStatus::Inexact),
+        (Some(0), FpStatus::INEXACT),
+        (Some(-1), FpStatus::INEXACT),
         Loss::HalfEven,
     );
     check_to_int_round(
         mk_f32(false, 0, 1 << 22),
-        (Some(1), FpStatus::Inexact),
-        (Some(2), FpStatus::Inexact),
+        (Some(1), FpStatus::INEXACT),
+        (Some(2), FpStatus::INEXACT),
         Loss::HalfOdd,
     );
     check_to_int_round(
         mk_f32(true, 0, 1 << 22),
-        (Some(-1), FpStatus::Inexact),
-        (Some(-2), FpStatus::Inexact),
+        (Some(-1), FpStatus::INEXACT),
+        (Some(-2), FpStatus::INEXACT),
         Loss::HalfOdd,
     );
     check_to_int_round(
         mk_f32(false, -1, 1 << 22),
-        (Some(0), FpStatus::Inexact),
-        (Some(1), FpStatus::Inexact),
+        (Some(0), FpStatus::INEXACT),
+        (Some(1), FpStatus::INEXACT),
         Loss::HalfUp,
     );
     check_to_int_round(
         mk_f32(true, -1, 1 << 22),
-        (Some(0), FpStatus::Inexact),
-        (Some(-1), FpStatus::Inexact),
+        (Some(0), FpStatus::INEXACT),
+        (Some(-1), FpStatus::INEXACT),
         Loss::HalfUp,
     );
     for e in -126..=-2 {
         check_to_int_round(
             mk_f32(false, e, 0),
-            (Some(0), FpStatus::Inexact),
-            (Some(1), FpStatus::Inexact),
+            (Some(0), FpStatus::INEXACT),
+            (Some(1), FpStatus::INEXACT),
             Loss::HalfDown,
         );
         check_to_int_round(
             mk_f32(true, e, 0),
-            (Some(0), FpStatus::Inexact),
-            (Some(-1), FpStatus::Inexact),
+            (Some(0), FpStatus::INEXACT),
+            (Some(-1), FpStatus::INEXACT),
             Loss::HalfDown,
         );
     }
@@ -539,7 +563,12 @@ fn test_from_str() {
             0x00800000,
             Loss::HalfUp,
         ),
-        ("1.17549435e-38", 0x007FFFFF, 0x00800000, Loss::HalfUp),
+        (
+            "1.17549435e-38",
+            0x007FFFFF,
+            0x00800000,
+            Loss::ThreeQuartersUp,
+        ),
         ("1e-50", 0x00000000, 0x00000001, Loss::HalfDown),
         (
             "1e-99999999999999999999",
@@ -1190,6 +1219,16 @@ fn test_scalbn() {
             mk_f32(s, -127, 0x80005),
             Loss::HalfUp,
         );
+
+        // 2^-126 * (1 - 2^-24), halfway between the largest subnormal number
+        // and the smallest normal number
+        check_scalbn_round(
+            mk_f32(s, 0, 0x7FFFFF),
+            -127,
+            mk_f32(s, -127, 0x7FFFFF),
+            mk_f32(s, -126, 0),
+            Loss::HalfOdd,
+        );
     }
 }
 
@@ -1301,11 +1340,11 @@ fn test_add_sub() {
             let expected_r = mk_f32(round == Round::TowardNegative, -127, 0);
 
             let (r, status) = mk_f32(s, -127, 0).add_ex(mk_f32(!s, -127, 0), round);
-            assert_eq!(status, FpStatus::Ok);
+            assert_eq!(status, FpStatus::OK);
             assert_eq!(r.to_bits(), expected_r.to_bits());
 
             let (r, status) = mk_f32(s, 0, 1).add_ex(mk_f32(!s, 0, 1), round);
-            assert_eq!(status, FpStatus::Ok);
+            assert_eq!(status, FpStatus::OK);
             assert_eq!(r.to_bits(), expected_r.to_bits());
         }
 
@@ -1328,6 +1367,11 @@ fn test_add_sub() {
             mk_f32(s, -127, 0x031B51),
             mk_f32(!s, -127, 0x031A01),
             mk_f32(s, -127, 0x000150),
+        );
+        check_add_sub_exact(
+            mk_f32(s, -126, 0),
+            mk_f32(!s, -127, 1),
+            mk_f32(s, -127, 0x7FFFFF),
         );
 
         check_add_sub_round(
@@ -1421,6 +1465,106 @@ fn test_mul() {
             true,
             Loss::HalfUp,
         );
+
+        let min_subnormal = mk_f32(s, -127, 1);
+        let max_subnormal = mk_f32(s, -127, 0x7FFFFF);
+        let min_normal = mk_f32(s, -126, 0);
+
+        // Subnormal results
+        check_mul_exact(mk_f32(s, -100, 0), mk_f32(false, -49, 0), min_subnormal);
+        check_mul_exact(
+            mk_f32(s, -100, 0x7FFFFE),
+            mk_f32(false, -27, 0),
+            max_subnormal,
+        );
+        check_mul_round(
+            mk_f32(s, -100, 0x000001),
+            mk_f32(false, -28, 0),
+            mk_f32(s, -127, 0x200000),
+            mk_f32(s, -127, 0x200001),
+            s,
+            Loss::HalfDown,
+        );
+
+        // Results between the largest subnormal number and the smallest
+        // normal number are tiny when they are still less than the smallest
+        // normal number after being rounded with an unbounded exponent range,
+        // even if they are finally rounded to the smallest normal number.
+
+        // 2^-126 * (1 - 2^-24 - 3 * 2^-47), less than halfway
+        check_mul_round(
+            mk_f32(s, -100, 0x7FFFFD),
+            mk_f32(false, -27, 0x000001),
+            max_subnormal,
+            min_normal,
+            s,
+            Loss::HalfDown,
+        );
+
+        // 2^-126 * (1 - 2^-24), halfway
+        check_mul_round(
+            mk_f32(s, -100, 0x7FFFFF),
+            mk_f32(false, -27, 0),
+            max_subnormal,
+            min_normal,
+            s,
+            Loss::HalfOdd,
+        );
+
+        // 2^-126 * (1 - 4500000 * 2^-47), between halfway and three quarters
+        check_mul_round(
+            mk_f32(s, -100, 0x7FF448),
+            mk_f32(false, -27, 0x0005DC),
+            max_subnormal,
+            min_normal,
+            s,
+            Loss::HalfUp,
+        );
+
+        // 2^-126 * (1 - 2^-25), three quarters
+        check_mul_round(
+            mk_f32(s, -100, 0x118E00),
+            mk_f32(false, -27, 0x612000),
+            max_subnormal,
+            min_normal,
+            s,
+            Loss::ThreeQuartersUp,
+        );
+
+        // 2^-126 * (1 - 2^-46), more than three quarters
+        check_mul_round(
+            mk_f32(s, -100, 0x7FFFFE),
+            mk_f32(false, -27, 0x000001),
+            max_subnormal,
+            min_normal,
+            s,
+            Loss::ThreeQuartersUp,
+        );
+    }
+
+    // The flags of the last case, without relying on helpers.
+    let lhs = mk_f32(false, -100, 0x7FFFFE);
+    let rhs = mk_f32(false, -27, 0x000001);
+    let max_subnormal = mk_f32(false, -127, 0x7FFFFF);
+    let min_normal = mk_f32(false, -126, 0);
+    for (round, expected, expected_status) in [
+        (Round::NearestTiesToEven, min_normal, FpStatus::INEXACT),
+        (Round::NearestTiesToAway, min_normal, FpStatus::INEXACT),
+        (Round::TowardPositive, min_normal, FpStatus::INEXACT),
+        (
+            Round::TowardNegative,
+            max_subnormal,
+            FpStatus::UNDERFLOW | FpStatus::INEXACT,
+        ),
+        (
+            Round::TowardZero,
+            max_subnormal,
+            FpStatus::UNDERFLOW | FpStatus::INEXACT,
+        ),
+    ] {
+        let (value, status) = lhs.mul_ex(rhs, round);
+        assert_eq!(value.to_bits(), expected.to_bits());
+        assert_eq!(status, expected_status);
     }
 }
 
@@ -1472,6 +1616,37 @@ fn test_div() {
             true,
             Loss::HalfUp,
         );
+
+        let min_subnormal = mk_f32(s, -127, 1);
+        let max_subnormal = mk_f32(s, -127, 0x7FFFFF);
+        let min_normal = mk_f32(s, -126, 0);
+
+        // Subnormal results
+        check_div_exact(mk_f32(s, -100, 0), mk_f32(false, 49, 0), min_subnormal);
+        check_div_exact(
+            mk_f32(s, -100, 0x7FFFFE),
+            mk_f32(false, 27, 0),
+            max_subnormal,
+        );
+        check_div_round(
+            mk_f32(s, -100, 0x000001),
+            mk_f32(false, 28, 0),
+            mk_f32(s, -127, 0x200000),
+            mk_f32(s, -127, 0x200001),
+            s,
+            Loss::HalfDown,
+        );
+
+        // 2^-126 * (1 - 2^-24), halfway between the largest subnormal number
+        // and the smallest normal number
+        check_div_round(
+            mk_f32(s, -100, 0x7FFFFF),
+            mk_f32(false, 27, 0),
+            max_subnormal,
+            min_normal,
+            s,
+            Loss::HalfOdd,
+        );
     }
 }
 
@@ -1483,25 +1658,25 @@ fn test_rem() {
                 swfp::F32::from_int(a),
                 swfp::F32::from_int(b),
                 swfp::F32::from_int(a % b),
-                FpStatus::Ok,
+                FpStatus::OK,
             );
             check_rem(
                 -swfp::F32::from_int(a),
                 swfp::F32::from_int(b),
                 -swfp::F32::from_int(a % b),
-                FpStatus::Ok,
+                FpStatus::OK,
             );
             check_rem(
                 swfp::F32::from_int(a),
                 -swfp::F32::from_int(b),
                 swfp::F32::from_int(a % b),
-                FpStatus::Ok,
+                FpStatus::OK,
             );
             check_rem(
                 -swfp::F32::from_int(a),
                 -swfp::F32::from_int(b),
                 -swfp::F32::from_int(a % b),
-                FpStatus::Ok,
+                FpStatus::OK,
             );
         }
     }

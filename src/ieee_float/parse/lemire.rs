@@ -62,15 +62,9 @@ pub(super) fn try_convert<S: Semantics>(
 
     let Ok(exp) = S::Exp::try_from(exp) else {
         return Some(if exp > 0 {
-            (
-                IeeeFloat::make_overflow_value(sign, round),
-                FpStatus::Overflow,
-            )
+            IeeeFloat::make_overflow_result(sign, round)
         } else {
-            (
-                IeeeFloat::make_underflow_value(sign, round),
-                FpStatus::Underflow,
-            )
+            IeeeFloat::make_underflow_result(sign, round)
         });
     };
     Some(IeeeFloat::round_and_classify(

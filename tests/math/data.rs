@@ -211,19 +211,15 @@ fn parse_float<T: swfp::Float>(s: &str) -> Result<T, &'static str> {
         // in binary64) are rounded to nearest. This is done in two steps, so fail
         // if both of them round to avoid double rounding.
         let (value, status1) = T::from_uint_ex(mant, swfp::Round::NearestTiesToEven);
-        if !matches!(status1, swfp::FpStatus::Ok | swfp::FpStatus::Inexact) {
+        if !matches!(status1, swfp::FpStatus::OK | swfp::FpStatus::INEXACT) {
             return Err("from u128 not ok");
         }
 
         let (value, status2) = value.scalbn_ex(exp, swfp::Round::NearestTiesToEven);
-        match status2 {
-            swfp::FpStatus::Ok => {}
-            swfp::FpStatus::Underflow | swfp::FpStatus::Inexact => {
-                if status1 != swfp::FpStatus::Ok {
-                    return Err("double rounding");
-                }
-            }
-            _ => return Err("scalbn not ok"),
+        if status2.contains(swfp::FpStatus::OVERFLOW) {
+            return Err("scalbn not ok");
+        } else if status2 != swfp::FpStatus::OK && status1 != swfp::FpStatus::OK {
+            return Err("double rounding");
         }
         value
     } else {

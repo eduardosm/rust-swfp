@@ -77,15 +77,9 @@ pub(super) fn convert<S: Semantics>(
     let exp = e2 - 1;
     let Ok(exp) = S::Exp::try_from(exp) else {
         if exp > 0 {
-            return (
-                IeeeFloat::make_overflow_value(sign, round),
-                FpStatus::Overflow,
-            );
+            return IeeeFloat::make_overflow_result(sign, round);
         } else {
-            return (
-                IeeeFloat::make_underflow_value(sign, round),
-                FpStatus::Underflow,
-            );
+            return IeeeFloat::make_underflow_result(sign, round);
         }
     };
     IeeeFloat::round_and_classify(sign, exp, S::Mant::cast_from(mant), loss, round)
@@ -192,19 +186,21 @@ fn required_limbs(num_digits: usize, q: i64) -> usize {
 /// Returns the maximum number of significant digits of a rounding boundary
 /// (a representable value or the midpoint between two consecutive
 /// representable values) of `S`, including `2^(max_normal_exp + 1)`, which
-/// separates finite results from overflows.
+/// separates finite results from overflows, and the boundaries right below
+/// the smallest normal number with an unbounded exponent range, which
+/// determine whether a result is tiny.
 fn max_digits<S: Semantics>() -> usize {
     let prec = i64::from(S::PREC_BITS);
     let min_exp = i64::from(S::min_normal_exp().into());
     let max_exp = i64::from(S::max_normal_exp().into());
 
     // Rounding boundaries are `m * 2^(e - prec)`, where `m < 2^(prec + 1)` and
-    // `min_exp <= e <= max_exp` (subnormal ones are included with
-    // `e = min_exp`).
+    // `min_exp - 1 <= e <= max_exp` (subnormal ones are included with
+    // `e = min_exp`, and tininess is detected with `e = min_exp - 1`).
     //
     // When `e < prec`, the boundary is `(m * 5^(prec - e)) * 10^(e - prec)`,
     // so it does not have more significant digits than
-    // `m * 5^(prec - e) < 2^(prec + 1) * 5^(prec - min_exp)`.
+    // `m * 5^(prec - e) < 2^(prec + 1) * 5^(prec - min_exp + 1)`.
     //
     // When `e >= prec`, the boundary is an integer not greater than
     // `2^(max_exp + 1)`.
@@ -212,7 +208,7 @@ fn max_digits<S: Semantics>() -> usize {
     // A positive integer less than or equal to `x` has at most
     // `floor(log10(x)) + 1` digits, `log10(2) < 0.30103` and
     // `log10(5) < 0.69898`.
-    let frac_digits = ((prec + 1) * 30103 + (prec - min_exp) * 69898) / 100000 + 1;
+    let frac_digits = ((prec + 1) * 30103 + (prec - min_exp + 1) * 69898) / 100000 + 1;
     let int_digits = (max_exp + 1) * 30103 / 100000 + 1;
     frac_digits.max(int_digits) as usize
 }

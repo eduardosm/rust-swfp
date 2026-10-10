@@ -74,9 +74,9 @@ fn test_convert_to_self() {
                 let new_bits = new_value.to_bits();
 
                 let (expected_status, expected_bits) = if value.is_nan() && bits & (1 << 111) == 0 {
-                    (FpStatus::Invalid, bits | (1 << 111))
+                    (FpStatus::INVALID, bits | (1 << 111))
                 } else {
-                    (FpStatus::Ok, bits)
+                    (FpStatus::OK, bits)
                 };
                 assert_eq!(status, expected_status);
                 assert_eq!(new_bits, expected_bits);

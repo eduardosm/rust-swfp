@@ -87,7 +87,7 @@ fn test_convert_to_self() {
         for round in round_modes {
             let (new_value, status) = swfp::F8E4M3Nao::convert_from_ex(value, round);
             let new_bits = new_value.to_bits();
-            assert_eq!(status, FpStatus::Ok);
+            assert_eq!(status, FpStatus::OK);
             if new_bits != bits {
                 panic!("0x{new_bits:04X} != 0x{bits:04X}");
             }
@@ -249,10 +249,10 @@ fn result_with_f32(
     round: Round,
 ) -> (swfp::F8E4M3Nao, FpStatus) {
     let (conv_value, conv_status) = swfp::F8E4M3Nao::convert_from_ex(value, round);
-    if conv_status == FpStatus::Ok {
+    if conv_status == FpStatus::OK {
         (conv_value, status)
-    } else if status == FpStatus::DivByZero {
-        (conv_value, FpStatus::DivByZero)
+    } else if status == FpStatus::DIV_BY_ZERO {
+        (conv_value, FpStatus::DIV_BY_ZERO)
     } else {
         (conv_value, conv_status)
     }

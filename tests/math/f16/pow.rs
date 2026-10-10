@@ -130,7 +130,7 @@ fn test_powi_with(mut f: impl FnMut(F16, i32)) {
 
     // Generated test data
     for [x, y] in crate::data::read_data_file::<[F16; 2]>("f16/pow.txt") {
-        let (Some(n), swfp::FpStatus::Ok) = y.to_int_ex(32, swfp::Round::TowardZero) else {
+        let (Some(n), swfp::FpStatus::OK) = y.to_int_ex(32, swfp::Round::TowardZero) else {
             continue;
         };
         f(x, n as i32);
