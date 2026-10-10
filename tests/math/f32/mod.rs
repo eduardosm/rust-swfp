@@ -67,11 +67,15 @@ fn from_rug(
 ) -> (swfp::F32, swfp::FpStatus) {
     assert_eq!(value.prec(), PREC);
 
+    // Tininess is detected after rounding with an unbounded exponent range,
+    // which is how `value` has been rounded so far.
+    let is_tiny = value.get_exp().is_some_and(|e| e - 1 < -126);
+
     let round_cmp = value.subnormalize_round(-126 + 1, round_cmp, round);
     if value.is_nan() {
-        (swfp::F32::NAN, swfp::FpStatus::Invalid)
+        (swfp::F32::NAN, swfp::FpStatus::INVALID)
     } else if value.is_infinite() {
-        let status = swfp::FpStatus::Ok;
+        let status = swfp::FpStatus::OK;
         if value.is_sign_negative() {
             (-swfp::F32::INFINITY, status)
         } else {
@@ -79,9 +83,9 @@ fn from_rug(
         }
     } else if value.is_zero() {
         let status = if round_cmp.is_eq() {
-            swfp::FpStatus::Ok
+            swfp::FpStatus::OK
         } else {
-            swfp::FpStatus::Underflow
+            swfp::FpStatus::UNDERFLOW | swfp::FpStatus::INEXACT
         };
         if value.is_sign_negative() {
             (-swfp::F32::ZERO, status)
@@ -91,7 +95,7 @@ fn from_rug(
     } else {
         let e = value.get_exp().unwrap() - 1;
         if e > 127 {
-            let status = swfp::FpStatus::Overflow;
+            let status = swfp::FpStatus::OVERFLOW | swfp::FpStatus::INEXACT;
             let inf = match round {
                 rug::float::Round::Nearest => true,
                 rug::float::Round::Up => value.is_sign_positive(),
@@ -111,18 +115,20 @@ fn from_rug(
             (res, status)
         } else if e < -126 {
             let status = if round_cmp.is_eq() {
-                swfp::FpStatus::Ok
+                swfp::FpStatus::OK
             } else {
-                swfp::FpStatus::Underflow
+                swfp::FpStatus::UNDERFLOW | swfp::FpStatus::INEXACT
             };
             let s = value.is_sign_negative();
             let m = (value.abs() << (126i32 + 23)).to_u32_saturating().unwrap();
             (mk_subnormal(m, s), status)
         } else {
             let status = if round_cmp.is_eq() {
-                swfp::FpStatus::Ok
+                swfp::FpStatus::OK
+            } else if is_tiny {
+                swfp::FpStatus::UNDERFLOW | swfp::FpStatus::INEXACT
             } else {
-                swfp::FpStatus::Inexact
+                swfp::FpStatus::INEXACT
             };
             let s = value.is_sign_negative();
             let m = (value.abs() >> (e - 23)).to_u32_saturating().unwrap();

@@ -42,9 +42,9 @@ pub(super) fn parse<S: Semantics>(
     round: Round,
 ) -> Result<(IeeeFloat<S>, FpStatus), ParseFloatError> {
     match parse_string(s, max_underflow_sci_exp::<S>(), min_overflow_sci_exp::<S>())? {
-        ParsedFloat::Nan(sign) => Ok((IeeeFloat::make_default_qnan().set_sign(sign), FpStatus::Ok)),
-        ParsedFloat::Infinity(sign) => Ok((IeeeFloat::make_inf(sign), FpStatus::Ok)),
-        ParsedFloat::Zero(sign) => Ok((IeeeFloat::make_zero(sign), FpStatus::Ok)),
+        ParsedFloat::Nan(sign) => Ok((IeeeFloat::make_default_qnan().set_sign(sign), FpStatus::OK)),
+        ParsedFloat::Infinity(sign) => Ok((IeeeFloat::make_inf(sign), FpStatus::OK)),
+        ParsedFloat::Zero(sign) => Ok((IeeeFloat::make_zero(sign), FpStatus::OK)),
         ParsedFloat::Finite(parsed) => {
             if let Some(result) = lemire::try_convert(&parsed, round) {
                 return Ok(result);
@@ -52,14 +52,8 @@ pub(super) fn parse<S: Semantics>(
 
             Ok(slow::convert(&parsed, round))
         }
-        ParsedFloat::FiniteUnderflow(sign) => Ok((
-            IeeeFloat::make_underflow_value(sign, round),
-            FpStatus::Underflow,
-        )),
-        ParsedFloat::FiniteOverflow(sign) => Ok((
-            IeeeFloat::make_overflow_value(sign, round),
-            FpStatus::Overflow,
-        )),
+        ParsedFloat::FiniteUnderflow(sign) => Ok(IeeeFloat::make_underflow_result(sign, round)),
+        ParsedFloat::FiniteOverflow(sign) => Ok(IeeeFloat::make_overflow_result(sign, round)),
     }
 }
 
@@ -327,7 +321,7 @@ mod tests {
             rug::Float::with_val_round(S::PREC_BITS + 1, value, rug::float::Round::Zero);
         if value.is_zero() {
             assert!(ord.is_eq());
-            return (IeeeFloat::make_zero(sign), FpStatus::Ok);
+            return (IeeeFloat::make_zero(sign), FpStatus::OK);
         }
         let (m, e) = value.to_integer_exp().unwrap();
         assert_eq!(m.significant_bits(), S::PREC_BITS + 1);
@@ -343,14 +337,8 @@ mod tests {
         let mant = S::Mant::cast_from(m >> 1);
         match S::Exp::try_from(exp) {
             Ok(exp) => IeeeFloat::round_and_classify(sign, exp, mant, loss, round),
-            Err(_) if exp > 0 => (
-                IeeeFloat::make_overflow_value(sign, round),
-                FpStatus::Overflow,
-            ),
-            Err(_) => (
-                IeeeFloat::make_underflow_value(sign, round),
-                FpStatus::Underflow,
-            ),
+            Err(_) if exp > 0 => IeeeFloat::make_overflow_result(sign, round),
+            Err(_) => IeeeFloat::make_underflow_result(sign, round),
         }
     }
 
@@ -359,23 +347,40 @@ mod tests {
         type S = crate::f64::F64Semantics;
 
         let cases = [
-            ("0", false, FpStatus::Ok),
-            ("-0.000", true, FpStatus::Ok),
-            ("0e99999999999999999999999", false, FpStatus::Ok),
-            ("-.0e-99999999999999999999999", true, FpStatus::Ok),
-            ("1e99999999999999999999999", false, FpStatus::Overflow),
-            ("-1e99999999999999999999999", true, FpStatus::Overflow),
-            ("1e-99999999999999999999999", false, FpStatus::Underflow),
-            ("-1e-99999999999999999999999", true, FpStatus::Underflow),
+            ("0", false, FpStatus::OK),
+            ("-0.000", true, FpStatus::OK),
+            ("0e99999999999999999999999", false, FpStatus::OK),
+            ("-.0e-99999999999999999999999", true, FpStatus::OK),
+            (
+                "1e99999999999999999999999",
+                false,
+                FpStatus::OVERFLOW | FpStatus::INEXACT,
+            ),
+            (
+                "-1e99999999999999999999999",
+                true,
+                FpStatus::OVERFLOW | FpStatus::INEXACT,
+            ),
+            (
+                "1e-99999999999999999999999",
+                false,
+                FpStatus::UNDERFLOW | FpStatus::INEXACT,
+            ),
+            (
+                "-1e-99999999999999999999999",
+                true,
+                FpStatus::UNDERFLOW | FpStatus::INEXACT,
+            ),
         ];
         for (s, sign, status) in cases {
             let (value, actual_status) =
                 parse::<S>(s.as_bytes(), Round::NearestTiesToEven).unwrap();
             assert_eq!(value.sign(), sign, "input = {s:?}");
             assert_eq!(actual_status, status, "input = {s:?}");
-            let expected = match status {
-                FpStatus::Ok | FpStatus::Underflow => IeeeFloat::<S>::make_zero(sign),
-                _ => IeeeFloat::<S>::make_inf(sign),
+            let expected = if status.contains(FpStatus::OVERFLOW) {
+                IeeeFloat::<S>::make_inf(sign)
+            } else {
+                IeeeFloat::<S>::make_zero(sign)
             };
             assert_eq!(value.to_bits(), expected.to_bits(), "input = {s:?}");
         }

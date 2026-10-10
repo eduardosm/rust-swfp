@@ -143,7 +143,7 @@ fn test_powi_with(mut f: impl FnMut(F32, i32)) {
 
     // Test data from core-math
     for [x, y] in crate::data::read_data_file::<[F32; 2]>("core-math/binary32/powf.wc") {
-        let (Some(n), swfp::FpStatus::Ok) = y.to_int_ex(32, swfp::Round::TowardZero) else {
+        let (Some(n), swfp::FpStatus::OK) = y.to_int_ex(32, swfp::Round::TowardZero) else {
             continue;
         };
         f(x, n as i32);

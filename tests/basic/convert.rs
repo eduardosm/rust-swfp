@@ -31,12 +31,12 @@ where
 {
     for round1 in ALL_ROUND_MODES {
         let (conv_value, status1) = F2::convert_from_ex(orig_value, round1);
-        assert_eq!(status1, FpStatus::Ok);
+        assert_eq!(status1, FpStatus::OK);
         assert_eq!(conv_value.to_bits(), expected_conv_value.to_bits());
 
         for round2 in ALL_ROUND_MODES {
             let (new_value, status2) = F1::convert_from_ex(conv_value, round2);
-            assert_eq!(status2, FpStatus::Ok);
+            assert_eq!(status2, FpStatus::OK);
             assert_eq!(new_value.to_bits(), orig_value.to_bits());
         }
     }
@@ -49,12 +49,12 @@ where
 {
     for round1 in ALL_ROUND_MODES {
         let (conv_value, status1) = F2::convert_from_ex(orig_value, round1);
-        assert_eq!(status1, FpStatus::Invalid);
+        assert_eq!(status1, FpStatus::INVALID);
         assert_eq!(conv_value.to_bits(), expected_conv_value.to_bits());
 
         for round2 in ALL_ROUND_MODES {
             let (_, status2) = F1::convert_from_ex(conv_value, round2);
-            assert_eq!(status2, FpStatus::Ok);
+            assert_eq!(status2, FpStatus::OK);
         }
     }
 }
@@ -279,6 +279,28 @@ fn test_convert_f32_to_f16() {
                 mk_f16(s, -15, 1),
                 s,
                 Loss::HalfDown,
+            );
+        }
+
+        // Between the largest subnormal number and the smallest normal number
+        for (hi, lo, loss) in [
+            (0x3FE, 0x0001, Loss::HalfDown),
+            (0x3FE, 0x1000, Loss::HalfDown),
+            (0x3FE, 0x1FFF, Loss::HalfDown),
+            (0x3FF, 0x0000, Loss::HalfOdd),
+            (0x3FF, 0x0001, Loss::HalfUp),
+            (0x3FF, 0x0FFF, Loss::HalfUp),
+            (0x3FF, 0x1000, Loss::ThreeQuartersUp),
+            (0x3FF, 0x1001, Loss::ThreeQuartersUp),
+            (0x3FF, 0x1FFF, Loss::ThreeQuartersUp),
+        ] {
+            let (m32, _) = mk_mants(hi, lo);
+            check_convert_round(
+                mk_f32(s, -15, m32),
+                mk_f16(s, -15, 0x3FF),
+                mk_f16(s, -14, 0),
+                s,
+                loss,
             );
         }
 

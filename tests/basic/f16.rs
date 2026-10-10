@@ -99,9 +99,9 @@ fn test_convert_to_self() {
             let new_bits = new_value.to_bits();
 
             let (expected_status, expected_bits) = if value.is_nan() && bits & 0x0200 == 0 {
-                (FpStatus::Invalid, bits | 0x0200)
+                (FpStatus::INVALID, bits | 0x0200)
             } else {
-                (FpStatus::Ok, bits)
+                (FpStatus::OK, bits)
             };
             assert_eq!(status, expected_status);
             if new_bits != expected_bits {
@@ -113,7 +113,7 @@ fn test_convert_to_self() {
 
 #[test]
 fn test_to_uint() {
-    check_to_uint_exact(mk_f16(false, 10, 0), (Some(1024), FpStatus::Ok));
+    check_to_uint_exact(mk_f16(false, 10, 0), (Some(1024), FpStatus::OK));
 }
 
 #[test]
@@ -344,7 +344,7 @@ fn test_to_from_str_roundtrip() {
 
 fn result_with_f32((value, status): (swfp::F32, FpStatus), round: Round) -> (swfp::F16, FpStatus) {
     let (conv_value, conv_status) = swfp::F16::convert_from_ex(value, round);
-    if conv_status == FpStatus::Ok {
+    if conv_status == FpStatus::OK {
         (conv_value, status)
     } else {
         (conv_value, conv_status)

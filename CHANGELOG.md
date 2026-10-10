@@ -2,6 +2,20 @@
 
 ## 0.2.0 (unreleased)
 
+### Breaking
+
+- `FpStatus` is now a set of flags instead of an enum, so more than one flag
+  can be reported by an operation. The enum variants have been replaced with
+  the associated constants `OK`, `INVALID`, `DIV_BY_ZERO`, `OVERFLOW`,
+  `UNDERFLOW` and `INEXACT`.
+- Status flags now follow IEEE 754 semantics:
+  - `OVERFLOW` and `UNDERFLOW` are always reported together with `INEXACT`.
+  - Tininess is detected after rounding, so `UNDERFLOW` is also reported for
+    some inexact results that are rounded to the smallest normal value.
+  - Conversions to integer report `INVALID` (instead of overflow) when the
+    input is infinity or out of range.
+  - Converting negative zero to integer does not report `INEXACT` anymore.
+
 ### Changed
 
 - Performance of floating point parsing has been improved.

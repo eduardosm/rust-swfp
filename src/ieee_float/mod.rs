@@ -332,26 +332,26 @@ impl<S: Semantics> IeeeFloat<S> {
                 (
                     Self::make_qnan::<false>(value.sign, S::Mant::cast_from(payload)),
                     if signaling {
-                        FpStatus::Invalid
+                        FpStatus::INVALID
                     } else {
-                        FpStatus::Ok
+                        FpStatus::OK
                     },
                 )
             }
             FpCategory::Infinite => {
                 let res_value = Self::make_inf(value.sign);
                 if res_value.category == FpCategory::Infinite {
-                    (res_value, FpStatus::Ok)
+                    (res_value, FpStatus::OK)
                 } else {
-                    (res_value, FpStatus::Inexact)
+                    (res_value, FpStatus::INEXACT)
                 }
             }
             FpCategory::Zero => {
                 let res_value = Self::make_zero(value.sign);
                 if res_value.sign == value.sign {
-                    (res_value, FpStatus::Ok)
+                    (res_value, FpStatus::OK)
                 } else {
-                    (res_value, FpStatus::Inexact)
+                    (res_value, FpStatus::INEXACT)
                 }
             }
             FpCategory::Subnormal | FpCategory::Normal => match S::Exp::try_from(value.exp) {
@@ -369,15 +369,9 @@ impl<S: Semantics> IeeeFloat<S> {
                 }
                 Err(_) => {
                     if value.exp > S2::Exp::ZERO {
-                        (
-                            Self::make_overflow_value(value.sign, round),
-                            FpStatus::Overflow,
-                        )
+                        Self::make_overflow_result(value.sign, round)
                     } else {
-                        (
-                            Self::make_underflow_value(value.sign, round),
-                            FpStatus::Underflow,
-                        )
+                        Self::make_underflow_result(value.sign, round)
                     }
                 }
             },
@@ -394,12 +388,12 @@ impl<S: Semantics> IeeeFloat<S> {
 
     fn from_uint_and_sign(value: u128, sign: bool, round: Round) -> (Self, FpStatus) {
         if value == 0 {
-            return (Self::make_zero(sign), FpStatus::Ok);
+            return (Self::make_zero(sign), FpStatus::OK);
         }
 
         let lz = value.leading_zeros();
         let Ok(exp) = S::Exp::try_from(127 - lz) else {
-            return (Self::make_overflow_value(sign, round), FpStatus::Overflow);
+            return Self::make_overflow_result(sign, round);
         };
 
         const {
@@ -426,29 +420,21 @@ impl<S: Semantics> IeeeFloat<S> {
             assert!(S::PREC_BITS < 128);
         }
         match self.category {
-            FpCategory::Nan => (None, FpStatus::Invalid),
-            FpCategory::Infinite => (None, FpStatus::Overflow),
-            FpCategory::Zero => (
-                Some(0),
-                if self.sign {
-                    FpStatus::Inexact
-                } else {
-                    FpStatus::Ok
-                },
-            ),
+            FpCategory::Nan | FpCategory::Infinite => (None, FpStatus::INVALID),
+            FpCategory::Zero => (Some(0), FpStatus::OK),
             FpCategory::Subnormal | FpCategory::Normal => {
                 if let Some((v, exact)) =
                     Self::to_int128_inner(self.sign, self.exp, self.mant, round)
                 {
                     if (self.sign && v != 0) || v > u128::MAX >> (128 - bits) {
-                        (None, FpStatus::Overflow)
+                        (None, FpStatus::INVALID)
                     } else if exact {
-                        (Some(v), FpStatus::Ok)
+                        (Some(v), FpStatus::OK)
                     } else {
-                        (Some(v), FpStatus::Inexact)
+                        (Some(v), FpStatus::INEXACT)
                     }
                 } else {
-                    (None, FpStatus::Overflow)
+                    (None, FpStatus::INVALID)
                 }
             }
         }
@@ -460,42 +446,34 @@ impl<S: Semantics> IeeeFloat<S> {
             assert!(S::PREC_BITS < 128);
         }
         match self.category {
-            FpCategory::Nan => (None, FpStatus::Invalid),
-            FpCategory::Infinite => (None, FpStatus::Overflow),
-            FpCategory::Zero => (
-                Some(0),
-                if self.sign {
-                    FpStatus::Inexact
-                } else {
-                    FpStatus::Ok
-                },
-            ),
+            FpCategory::Nan | FpCategory::Infinite => (None, FpStatus::INVALID),
+            FpCategory::Zero => (Some(0), FpStatus::OK),
             FpCategory::Subnormal | FpCategory::Normal => {
                 if let Some((v, exact)) =
                     Self::to_int128_inner(self.sign, self.exp, self.mant, round)
                 {
                     if self.sign {
                         if v == 0 {
-                            (Some(0), FpStatus::Inexact)
+                            (Some(0), FpStatus::INEXACT)
                         } else if v > 1 << (bits - 1) {
-                            (None, FpStatus::Overflow)
+                            (None, FpStatus::INVALID)
                         } else {
                             let v = v.wrapping_neg() as i128;
                             if exact {
-                                (Some(v), FpStatus::Ok)
+                                (Some(v), FpStatus::OK)
                             } else {
-                                (Some(v), FpStatus::Inexact)
+                                (Some(v), FpStatus::INEXACT)
                             }
                         }
                     } else if v > (u128::MAX >> 1) >> (128 - bits) {
-                        (None, FpStatus::Overflow)
+                        (None, FpStatus::INVALID)
                     } else if exact {
-                        (Some(v as i128), FpStatus::Ok)
+                        (Some(v as i128), FpStatus::OK)
                     } else {
-                        (Some(v as i128), FpStatus::Inexact)
+                        (Some(v as i128), FpStatus::INEXACT)
                     }
                 } else {
-                    (None, FpStatus::Overflow)
+                    (None, FpStatus::INVALID)
                 }
             }
         }
@@ -554,13 +532,13 @@ impl<S: Semantics> IeeeFloat<S> {
             FpCategory::Nan => {
                 let (res_value, is_signaling) = self.propagate_nan();
                 if is_signaling {
-                    (res_value, FpStatus::Invalid)
+                    (res_value, FpStatus::INVALID)
                 } else {
-                    (res_value, FpStatus::Ok)
+                    (res_value, FpStatus::OK)
                 }
             }
-            FpCategory::Infinite => (self, FpStatus::Ok),
-            FpCategory::Zero => (self, FpStatus::Ok),
+            FpCategory::Infinite => (self, FpStatus::OK),
+            FpCategory::Zero => (self, FpStatus::OK),
             FpCategory::Subnormal | FpCategory::Normal => {
                 if self.exp <= S::Exp::from(-2i8) {
                     let res_value = match (round, self.sign) {
@@ -576,7 +554,7 @@ impl<S: Semantics> IeeeFloat<S> {
                             mant: S::Mant::ONE << S::MANT_FRAC_BITS,
                         },
                     };
-                    (res_value, FpStatus::Inexact)
+                    (res_value, FpStatus::INEXACT)
                 } else if self.exp < S::Exp::cast_from(S::MANT_FRAC_BITS) {
                     let shift: u32 = (S::Exp::cast_from(S::MANT_FRAC_BITS) - self.exp).cast_into();
                     let loss = RoundLoss::from_shift(self.mant, shift);
@@ -585,7 +563,7 @@ impl<S: Semantics> IeeeFloat<S> {
                         // Only reachable when `self.exp` is -1, where every
                         // mantissa bit is shifted out, so the loss is never zero.
                         debug_assert_ne!(loss, RoundLoss::Zero);
-                        return (Self::make_zero(self.sign), FpStatus::Inexact);
+                        return (Self::make_zero(self.sign), FpStatus::INEXACT);
                     }
                     let mut exp = self.exp;
                     let mut mant = mant << shift;
@@ -594,7 +572,7 @@ impl<S: Semantics> IeeeFloat<S> {
                         mant >>= 1;
                     }
                     if exp > S::max_normal_exp() {
-                        (Self::make_inf(self.sign), FpStatus::Overflow)
+                        Self::make_overflow_result(self.sign, round)
                     } else {
                         (
                             Self {
@@ -604,14 +582,14 @@ impl<S: Semantics> IeeeFloat<S> {
                                 mant,
                             },
                             if loss == RoundLoss::Zero {
-                                FpStatus::Ok
+                                FpStatus::OK
                             } else {
-                                FpStatus::Inexact
+                                FpStatus::INEXACT
                             },
                         )
                     }
                 } else {
-                    (self, FpStatus::Ok)
+                    (self, FpStatus::OK)
                 }
             }
         }
@@ -622,13 +600,13 @@ impl<S: Semantics> IeeeFloat<S> {
             FpCategory::Nan => {
                 let (res_value, is_signaling) = self.propagate_nan();
                 if is_signaling {
-                    (res_value, FpStatus::Invalid)
+                    (res_value, FpStatus::INVALID)
                 } else {
-                    (res_value, FpStatus::Ok)
+                    (res_value, FpStatus::OK)
                 }
             }
-            FpCategory::Infinite => (self, FpStatus::Ok),
-            FpCategory::Zero => (self, FpStatus::Ok),
+            FpCategory::Infinite => (self, FpStatus::OK),
+            FpCategory::Zero => (self, FpStatus::OK),
             FpCategory::Subnormal | FpCategory::Normal => {
                 match S::Exp::try_from(exp)
                     .ok()
@@ -636,15 +614,9 @@ impl<S: Semantics> IeeeFloat<S> {
                 {
                     None => {
                         if exp > 0 {
-                            (
-                                Self::make_overflow_value(self.sign, round),
-                                FpStatus::Overflow,
-                            )
+                            Self::make_overflow_result(self.sign, round)
                         } else {
-                            (
-                                Self::make_underflow_value(self.sign, round),
-                                FpStatus::Underflow,
-                            )
+                            Self::make_underflow_result(self.sign, round)
                         }
                     }
                     Some(exp) => {
@@ -686,22 +658,22 @@ impl<S: Semantics> IeeeFloat<S> {
             }
             (FpCategory::Infinite, FpCategory::Infinite) => {
                 if self.sign == rhs.sign {
-                    (self, FpStatus::Ok)
+                    (self, FpStatus::OK)
                 } else {
-                    (Self::make_default_qnan(), FpStatus::Invalid)
+                    (Self::make_default_qnan(), FpStatus::INVALID)
                 }
             }
-            (FpCategory::Infinite, _) => (self, FpStatus::Ok),
-            (_, FpCategory::Infinite) => (rhs, FpStatus::Ok),
+            (FpCategory::Infinite, _) => (self, FpStatus::OK),
+            (_, FpCategory::Infinite) => (rhs, FpStatus::OK),
             (FpCategory::Zero, FpCategory::Zero) => {
                 if self.sign == rhs.sign {
-                    (self, FpStatus::Ok)
+                    (self, FpStatus::OK)
                 } else {
-                    (Self::make_zero_sum(round), FpStatus::Ok)
+                    (Self::make_zero_sum(round), FpStatus::OK)
                 }
             }
-            (FpCategory::Zero, FpCategory::Normal | FpCategory::Subnormal) => (rhs, FpStatus::Ok),
-            (FpCategory::Normal | FpCategory::Subnormal, FpCategory::Zero) => (self, FpStatus::Ok),
+            (FpCategory::Zero, FpCategory::Normal | FpCategory::Subnormal) => (rhs, FpStatus::OK),
+            (FpCategory::Normal | FpCategory::Subnormal, FpCategory::Zero) => (self, FpStatus::OK),
             (
                 FpCategory::Normal | FpCategory::Subnormal,
                 FpCategory::Normal | FpCategory::Subnormal,
@@ -720,7 +692,7 @@ impl<S: Semantics> IeeeFloat<S> {
                         core::cmp::Ordering::Less => {
                             Self::sub_inner(rhs.sign, rhs.exp, rhs.mant, self.exp, self.mant, round)
                         }
-                        core::cmp::Ordering::Equal => (Self::make_zero_sum(round), FpStatus::Ok),
+                        core::cmp::Ordering::Equal => (Self::make_zero_sum(round), FpStatus::OK),
                         core::cmp::Ordering::Greater => Self::sub_inner(
                             self.sign, self.exp, self.mant, rhs.exp, rhs.mant, round,
                         ),
@@ -741,22 +713,22 @@ impl<S: Semantics> IeeeFloat<S> {
             }
             (FpCategory::Infinite, FpCategory::Infinite) => {
                 if self.sign == rhs.sign {
-                    (Self::make_default_qnan(), FpStatus::Invalid)
+                    (Self::make_default_qnan(), FpStatus::INVALID)
                 } else {
-                    (self, FpStatus::Ok)
+                    (self, FpStatus::OK)
                 }
             }
-            (FpCategory::Infinite, _) => (self, FpStatus::Ok),
-            (_, FpCategory::Infinite) => (-rhs, FpStatus::Ok),
+            (FpCategory::Infinite, _) => (self, FpStatus::OK),
+            (_, FpCategory::Infinite) => (-rhs, FpStatus::OK),
             (FpCategory::Zero, FpCategory::Zero) => {
                 if self.sign == rhs.sign {
-                    (Self::make_zero_sum(round), FpStatus::Ok)
+                    (Self::make_zero_sum(round), FpStatus::OK)
                 } else {
-                    (self, FpStatus::Ok)
+                    (self, FpStatus::OK)
                 }
             }
-            (FpCategory::Zero, FpCategory::Normal | FpCategory::Subnormal) => (-rhs, FpStatus::Ok),
-            (FpCategory::Normal | FpCategory::Subnormal, FpCategory::Zero) => (self, FpStatus::Ok),
+            (FpCategory::Zero, FpCategory::Normal | FpCategory::Subnormal) => (-rhs, FpStatus::OK),
+            (FpCategory::Normal | FpCategory::Subnormal, FpCategory::Zero) => (self, FpStatus::OK),
             (
                 FpCategory::Normal | FpCategory::Subnormal,
                 FpCategory::Normal | FpCategory::Subnormal,
@@ -766,7 +738,7 @@ impl<S: Semantics> IeeeFloat<S> {
                         core::cmp::Ordering::Less => Self::sub_inner(
                             !self.sign, rhs.exp, rhs.mant, self.exp, self.mant, round,
                         ),
-                        core::cmp::Ordering::Equal => (Self::make_zero_sum(round), FpStatus::Ok),
+                        core::cmp::Ordering::Equal => (Self::make_zero_sum(round), FpStatus::OK),
                         core::cmp::Ordering::Greater => Self::sub_inner(
                             self.sign, self.exp, self.mant, rhs.exp, rhs.mant, round,
                         ),
@@ -875,13 +847,13 @@ impl<S: Semantics> IeeeFloat<S> {
                 unreachable!();
             }
             (FpCategory::Infinite, FpCategory::Zero) | (FpCategory::Zero, FpCategory::Infinite) => {
-                (Self::make_default_qnan(), FpStatus::Invalid)
+                (Self::make_default_qnan(), FpStatus::INVALID)
             }
             (FpCategory::Infinite, _) | (_, FpCategory::Infinite) => {
-                (Self::make_inf(self.sign ^ rhs.sign), FpStatus::Ok)
+                (Self::make_inf(self.sign ^ rhs.sign), FpStatus::OK)
             }
             (FpCategory::Zero, _) | (_, FpCategory::Zero) => {
-                (Self::make_zero(self.sign ^ rhs.sign), FpStatus::Ok)
+                (Self::make_zero(self.sign ^ rhs.sign), FpStatus::OK)
             }
             (
                 FpCategory::Normal | FpCategory::Subnormal,
@@ -916,13 +888,13 @@ impl<S: Semantics> IeeeFloat<S> {
                 unreachable!();
             }
             (FpCategory::Infinite, FpCategory::Infinite) | (FpCategory::Zero, FpCategory::Zero) => {
-                (Self::make_default_qnan(), FpStatus::Invalid)
+                (Self::make_default_qnan(), FpStatus::INVALID)
             }
             (FpCategory::Infinite | FpCategory::Zero, _) => {
-                (self.set_sign(self.sign ^ rhs.sign), FpStatus::Ok)
+                (self.set_sign(self.sign ^ rhs.sign), FpStatus::OK)
             }
-            (_, FpCategory::Infinite) => (Self::make_zero(self.sign ^ rhs.sign), FpStatus::Ok),
-            (_, FpCategory::Zero) => (Self::make_inf(self.sign ^ rhs.sign), FpStatus::DivByZero),
+            (_, FpCategory::Infinite) => (Self::make_zero(self.sign ^ rhs.sign), FpStatus::OK),
+            (_, FpCategory::Zero) => (Self::make_inf(self.sign ^ rhs.sign), FpStatus::DIV_BY_ZERO),
             (
                 FpCategory::Normal | FpCategory::Subnormal,
                 FpCategory::Normal | FpCategory::Subnormal,
@@ -971,9 +943,9 @@ impl<S: Semantics> IeeeFloat<S> {
                 unreachable!();
             }
             (FpCategory::Infinite, _) | (_, FpCategory::Zero) => {
-                (Self::make_default_qnan(), FpStatus::Invalid)
+                (Self::make_default_qnan(), FpStatus::INVALID)
             }
-            (FpCategory::Zero, _) | (_, FpCategory::Infinite) => (self, FpStatus::Ok),
+            (FpCategory::Zero, _) | (_, FpCategory::Infinite) => (self, FpStatus::OK),
             (
                 FpCategory::Normal | FpCategory::Subnormal,
                 FpCategory::Normal | FpCategory::Subnormal,
@@ -987,7 +959,7 @@ impl<S: Semantics> IeeeFloat<S> {
                             mant <<= 1;
                         }
                         core::cmp::Ordering::Equal => {
-                            return (Self::make_zero(self.sign), FpStatus::Ok);
+                            return (Self::make_zero(self.sign), FpStatus::OK);
                         }
                         core::cmp::Ordering::Greater => {}
                     }
@@ -1007,7 +979,7 @@ impl<S: Semantics> IeeeFloat<S> {
                         exp,
                         mant,
                     },
-                    FpStatus::Ok,
+                    FpStatus::OK,
                 )
             }
         }
@@ -1018,22 +990,22 @@ impl<S: Semantics> IeeeFloat<S> {
             FpCategory::Nan => {
                 let (res_value, is_signaling) = self.propagate_nan();
                 if is_signaling {
-                    (res_value, FpStatus::Invalid)
+                    (res_value, FpStatus::INVALID)
                 } else {
-                    (res_value, FpStatus::Ok)
+                    (res_value, FpStatus::OK)
                 }
             }
             FpCategory::Infinite => {
                 if self.sign {
-                    (Self::make_default_qnan(), FpStatus::Invalid)
+                    (Self::make_default_qnan(), FpStatus::INVALID)
                 } else {
-                    (self, FpStatus::Ok)
+                    (self, FpStatus::OK)
                 }
             }
-            FpCategory::Zero => (self, FpStatus::Ok),
+            FpCategory::Zero => (self, FpStatus::OK),
             FpCategory::Subnormal | FpCategory::Normal => {
                 if self.sign {
-                    return (Self::make_default_qnan(), FpStatus::Invalid);
+                    return (Self::make_default_qnan(), FpStatus::INVALID);
                 }
 
                 let (m, e) = if self.exp & S::Exp::ONE == S::Exp::ZERO {
@@ -1080,22 +1052,22 @@ impl<S: Semantics> IeeeFloat<S> {
     pub(crate) fn hypot(self, other: Self, round: Round) -> (Self, FpStatus) {
         if self.category == FpCategory::Infinite {
             if other.category == FpCategory::Nan && !other.nan_is_quiet() {
-                return (other.propagate_nan().0, FpStatus::Invalid);
+                return (other.propagate_nan().0, FpStatus::INVALID);
             } else {
-                return (self.abs(), FpStatus::Ok);
+                return (self.abs(), FpStatus::OK);
             }
         } else if other.category == FpCategory::Infinite {
             if self.category == FpCategory::Nan && !self.nan_is_quiet() {
-                return (self.propagate_nan().0, FpStatus::Invalid);
+                return (self.propagate_nan().0, FpStatus::INVALID);
             } else {
-                return (other.abs(), FpStatus::Ok);
+                return (other.abs(), FpStatus::OK);
             }
         } else if let Some(r) = self.handle_binary_op_nan(other) {
             return r;
         } else if self.category == FpCategory::Zero {
-            return (other.abs(), FpStatus::Ok);
+            return (other.abs(), FpStatus::OK);
         } else if other.category == FpCategory::Zero {
-            return (self.abs(), FpStatus::Ok);
+            return (self.abs(), FpStatus::OK);
         }
 
         let mut a_exp = self.exp * S::Exp::TWO;
@@ -1230,10 +1202,17 @@ impl<S: Semantics> IeeeFloat<S> {
         debug_assert!(mant < S::Mant::ONE << S::PREC_BITS);
 
         if exp < S::min_subnormal_exp() - S::Exp::ONE {
-            return (Self::make_underflow_value(sign, round), FpStatus::Underflow);
+            return Self::make_underflow_result(sign, round);
         } else if exp > S::max_normal_exp() {
-            return (Self::make_overflow_value(sign, round), FpStatus::Overflow);
+            return Self::make_overflow_result(sign, round);
         }
+
+        // Tininess is detected after rounding: the result is tiny when it is
+        // less than the smallest normal number after being rounded as if the
+        // exponent range were unbounded.
+        let is_tiny = exp < S::min_normal_exp() - S::Exp::ONE
+            || (exp == S::min_normal_exp() - S::Exp::ONE
+                && Self::apply_round(sign, mant, loss, round) < S::Mant::ONE << S::PREC_BITS);
 
         let mut shift = 0u32;
         if exp < S::min_normal_exp() {
@@ -1258,12 +1237,24 @@ impl<S: Semantics> IeeeFloat<S> {
             exp > S::max_normal_exp()
         };
 
+        // Underflow is not flagged when the result is exact, even if it is
+        // tiny.
+        let status = if loss == RoundLoss::Zero {
+            FpStatus::OK
+        } else if is_tiny {
+            FpStatus::UNDERFLOW | FpStatus::INEXACT
+        } else {
+            FpStatus::INEXACT
+        };
+
         if is_overflow {
-            (Self::make_overflow_value(sign, round), FpStatus::Overflow)
+            Self::make_overflow_result(sign, round)
         } else if exp < S::min_subnormal_exp() {
             debug_assert_eq!(exp, S::min_subnormal_exp() - S::Exp::ONE);
-            (Self::make_zero(sign), FpStatus::Underflow)
+            debug_assert_eq!(status, FpStatus::UNDERFLOW | FpStatus::INEXACT);
+            (Self::make_zero(sign), status)
         } else if exp < S::min_normal_exp() {
+            debug_assert!(is_tiny);
             (
                 Self {
                     category: FpCategory::Subnormal,
@@ -1271,13 +1262,11 @@ impl<S: Semantics> IeeeFloat<S> {
                     exp,
                     mant,
                 },
-                if loss == RoundLoss::Zero {
-                    FpStatus::Ok
-                } else {
-                    FpStatus::Underflow
-                },
+                status,
             )
         } else {
+            // The result can be tiny when it has been rounded up to the
+            // smallest normal number.
             (
                 Self {
                     category: FpCategory::Normal,
@@ -1285,11 +1274,7 @@ impl<S: Semantics> IeeeFloat<S> {
                     exp,
                     mant,
                 },
-                if loss == RoundLoss::Zero {
-                    FpStatus::Ok
-                } else {
-                    FpStatus::Inexact
-                },
+                status,
             )
         }
     }
@@ -1300,25 +1285,25 @@ impl<S: Semantics> IeeeFloat<S> {
             (FpCategory::Nan, FpCategory::Nan) => {
                 let (res_value, lhs_is_signaling) = self.propagate_nan();
                 if lhs_is_signaling || !rhs.nan_is_quiet() {
-                    Some((res_value, FpStatus::Invalid))
+                    Some((res_value, FpStatus::INVALID))
                 } else {
-                    Some((res_value, FpStatus::Ok))
+                    Some((res_value, FpStatus::OK))
                 }
             }
             (FpCategory::Nan, _) => {
                 let (res_value, signaling) = self.propagate_nan();
                 if signaling {
-                    Some((res_value, FpStatus::Invalid))
+                    Some((res_value, FpStatus::INVALID))
                 } else {
-                    Some((res_value, FpStatus::Ok))
+                    Some((res_value, FpStatus::OK))
                 }
             }
             (_, FpCategory::Nan) => {
                 let (res_value, signaling) = rhs.propagate_nan();
                 if signaling {
-                    Some((res_value, FpStatus::Invalid))
+                    Some((res_value, FpStatus::INVALID))
                 } else {
-                    Some((res_value, FpStatus::Ok))
+                    Some((res_value, FpStatus::OK))
                 }
             }
             _ => None,
@@ -1333,9 +1318,11 @@ impl<S: Semantics> IeeeFloat<S> {
         Self::make_zero(round == Round::TowardNegative)
     }
 
+    /// Returns the result of an operation that overflows, which is always
+    /// inexact.
     #[inline]
-    fn make_overflow_value(sign: bool, round: Round) -> Self {
-        match (round, sign) {
+    fn make_overflow_result(sign: bool, round: Round) -> (Self, FpStatus) {
+        let value = match (round, sign) {
             (Round::NearestTiesToEven, _)
             | (Round::NearestTiesToAway, _)
             | (Round::TowardPositive, false)
@@ -1343,12 +1330,16 @@ impl<S: Semantics> IeeeFloat<S> {
             (Round::TowardPositive, true)
             | (Round::TowardNegative, false)
             | (Round::TowardZero, _) => Self::make_largest_finite(sign),
-        }
+        };
+        (value, FpStatus::OVERFLOW | FpStatus::INEXACT)
     }
 
+    /// Returns the result of an operation whose exact result is less than
+    /// half of the smallest subnormal number, which is always tiny and
+    /// inexact.
     #[inline]
-    fn make_underflow_value(sign: bool, round: Round) -> Self {
-        match (round, sign) {
+    fn make_underflow_result(sign: bool, round: Round) -> (Self, FpStatus) {
+        let value = match (round, sign) {
             (Round::NearestTiesToEven, _)
             | (Round::NearestTiesToAway, _)
             | (Round::TowardPositive, true)
@@ -1357,7 +1348,8 @@ impl<S: Semantics> IeeeFloat<S> {
             (Round::TowardPositive, false) | (Round::TowardNegative, true) => {
                 Self::make_smallest_subnormal(sign)
             }
-        }
+        };
+        (value, FpStatus::UNDERFLOW | FpStatus::INEXACT)
     }
 
     #[inline]

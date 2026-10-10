@@ -19,6 +19,7 @@ mod f64;
 mod f8e4m3b8nnz;
 mod f8e4m3nao;
 mod f8e5m2;
+mod status;
 mod x87f80;
 
 const ALL_ROUND_MODES: [Round; 5] = [
@@ -164,12 +165,30 @@ fn check_compare<F: Float>(a: F, b: F, ord: Option<std::cmp::Ordering>) {
     assert_eq!(a >= b, ord.is_some_and(|ord| ord.is_ge()));
 }
 
+/// Position of an exact result between the two representable values it can
+/// be rounded to: `tz` (toward zero) and `az` (away from zero).
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum Loss {
+    /// Closer to `az`.
+    ///
+    /// When `tz` is the largest subnormal number, the exact result must be
+    /// less than three quarters of the way from `tz` to `az` (see
+    /// `ThreeQuartersUp`).
     HalfUp,
+    /// Closer to `az`, at least three quarters of the way from `tz` to `az`.
+    ///
+    /// It only needs to be distinguished from `HalfUp` when `tz` is the
+    /// largest subnormal number, where it determines whether a result rounded
+    /// to nearest is tiny.
+    ThreeQuartersUp,
+    /// Closer to `tz`.
     HalfDown,
+    /// Halfway between `tz` and `az`, with `tz` being even.
     HalfEven,
+    /// Halfway between `tz` and `az`, with `tz` being odd.
     HalfOdd,
+    /// Larger in magnitude than the largest finite number even when rounded
+    /// toward zero, so it overflows with all the rounding modes.
     Overflow,
 }
 
@@ -235,7 +254,7 @@ where
                 ],
             );
         }
-        (Loss::HalfUp, false) => {
+        (Loss::HalfUp | Loss::ThreeQuartersUp, false) => {
             check_cases(expected_tz, &[Round::TowardNegative, Round::TowardZero]);
             check_cases(
                 expected_az,
@@ -246,7 +265,7 @@ where
                 ],
             );
         }
-        (Loss::HalfUp, true) => {
+        (Loss::HalfUp | Loss::ThreeQuartersUp, true) => {
             check_cases(expected_tz, &[Round::TowardPositive, Round::TowardZero]);
             check_cases(
                 expected_az,
@@ -315,29 +334,49 @@ fn check_float_round<F>(
 ) where
     F: Float<Bits: Eq + std::fmt::Debug>,
 {
-    let get_expected_status = |expected_value: F| {
-        if loss == Loss::Overflow {
-            FpStatus::Overflow
-        } else {
-            match expected_value.classify() {
-                // Handle NaNs for formats without infinities.
-                FpCategory::Nan | FpCategory::Infinite => FpStatus::Overflow,
-                FpCategory::Zero | FpCategory::Subnormal => FpStatus::Underflow,
-                FpCategory::Normal => FpStatus::Inexact,
-            }
-        }
-    };
-
     check_round(
-        |round| {
-            let (value, status) = f(round);
-            (value.to_bits(), status)
-        },
-        (expected_tz.to_bits(), get_expected_status(expected_tz)),
-        (expected_az.to_bits(), get_expected_status(expected_az)),
+        |round| f(round).0.to_bits(),
+        expected_tz.to_bits(),
+        expected_az.to_bits(),
         sign,
         loss,
     );
+
+    // Tininess is detected after rounding with an unbounded exponent range,
+    // where the midpoint between the largest subnormal number and the smallest
+    // normal number is also representable. So, when the exact result is
+    // between those two numbers and it is rounded to the smallest normal
+    // number, it is still tiny if it would have been rounded to that midpoint
+    // with an unbounded exponent range.
+    let tz_is_max_subnormal = expected_tz.is_subnormal() && expected_az.is_normal();
+    let az_is_tiny = |round: Round| {
+        tz_is_max_subnormal
+            && match round {
+                Round::NearestTiesToEven | Round::NearestTiesToAway => {
+                    loss != Loss::ThreeQuartersUp
+                }
+                Round::TowardPositive | Round::TowardNegative | Round::TowardZero => {
+                    !matches!(loss, Loss::HalfUp | Loss::ThreeQuartersUp)
+                }
+            }
+    };
+
+    for round in ALL_ROUND_MODES {
+        // The value has already been checked above.
+        let (value, status) = f(round);
+        let expected_status = if loss == Loss::Overflow {
+            FpStatus::OVERFLOW | FpStatus::INEXACT
+        } else {
+            match value.classify() {
+                // Handle NaNs for formats without infinities.
+                FpCategory::Nan | FpCategory::Infinite => FpStatus::OVERFLOW | FpStatus::INEXACT,
+                FpCategory::Zero | FpCategory::Subnormal => FpStatus::UNDERFLOW | FpStatus::INEXACT,
+                FpCategory::Normal if az_is_tiny(round) => FpStatus::UNDERFLOW | FpStatus::INEXACT,
+                FpCategory::Normal => FpStatus::INEXACT,
+            }
+        };
+        assert_eq!(status, expected_status, "round = {round:?}");
+    }
 }
 
 fn check_from_uint_exact<F>(value: u128, expected_res: F)
@@ -346,7 +385,7 @@ where
 {
     for round in ALL_ROUND_MODES {
         let (value, status) = F::from_uint_ex(value, round);
-        assert_eq!(status, FpStatus::Ok);
+        assert_eq!(status, FpStatus::OK);
         assert_eq!(value.to_bits(), expected_res.to_bits());
     }
 
@@ -377,7 +416,7 @@ where
 {
     for round in ALL_ROUND_MODES {
         let (value, status) = F::from_int_ex(value, round);
-        assert_eq!(status, FpStatus::Ok);
+        assert_eq!(status, FpStatus::OK);
         assert_eq!(value.to_bits(), expected_res.to_bits());
     }
 
@@ -421,10 +460,10 @@ where
     }
     for n in 1..bits {
         for round in ALL_ROUND_MODES {
-            assert_eq!(value.to_uint_ex(n, round), (None, FpStatus::Overflow));
+            assert_eq!(value.to_uint_ex(n, round), (None, FpStatus::INVALID));
             assert_eq!(
                 value.round_int_ex(round).0.to_uint_ex(n, round),
-                (None, FpStatus::Overflow),
+                (None, FpStatus::INVALID),
             );
         }
         assert_eq!(value.to_uint(n), None);
@@ -456,12 +495,12 @@ fn check_to_uint_round<F>(
             if n >= bits_tz {
                 expected_tz
             } else {
-                (None, FpStatus::Overflow)
+                (None, FpStatus::INVALID)
             },
             if n >= bits_az {
                 expected_az
             } else {
-                (None, FpStatus::Overflow)
+                (None, FpStatus::INVALID)
             },
             value.is_sign_negative(),
             loss,
@@ -500,10 +539,10 @@ where
     }
     for n in 1..bits {
         for round in ALL_ROUND_MODES {
-            assert_eq!(value.to_int_ex(n, round), (None, FpStatus::Overflow));
+            assert_eq!(value.to_int_ex(n, round), (None, FpStatus::INVALID));
             assert_eq!(
                 value.round_int_ex(round).0.to_int_ex(n, round),
-                (None, FpStatus::Overflow),
+                (None, FpStatus::INVALID),
             );
         }
         assert_eq!(value.to_int(n), None);
@@ -557,12 +596,12 @@ fn check_to_int_round<F>(
             if n >= bits_tz {
                 expected_tz
             } else {
-                (None, FpStatus::Overflow)
+                (None, FpStatus::INVALID)
             },
             if n >= bits_az {
                 expected_az
             } else {
-                (None, FpStatus::Overflow)
+                (None, FpStatus::INVALID)
             },
             value.is_sign_negative(),
             loss,
@@ -759,7 +798,7 @@ where
 {
     for round in ALL_ROUND_MODES {
         let (value, status) = F::from_str_ex(s, round).unwrap();
-        assert_eq!(status, FpStatus::Ok);
+        assert_eq!(status, FpStatus::OK);
         assert_eq!(value.to_bits(), expected_res.to_bits());
     }
 
@@ -816,7 +855,7 @@ where
 {
     for round in ALL_ROUND_MODES {
         let (result, status) = value.round_int_ex(round);
-        assert_eq!(status, FpStatus::Ok);
+        assert_eq!(status, FpStatus::OK);
         assert_eq!(result.to_bits(), value.to_bits());
     }
 
@@ -836,8 +875,8 @@ where
             let (value, status) = value.round_int_ex(round);
             (value.to_bits(), status)
         },
-        (expected_tz.to_bits(), FpStatus::Inexact),
-        (expected_az.to_bits(), FpStatus::Inexact),
+        (expected_tz.to_bits(), FpStatus::INEXACT),
+        (expected_az.to_bits(), FpStatus::INEXACT),
         value.is_sign_negative(),
         loss,
     );
@@ -870,7 +909,7 @@ where
 {
     for round in ALL_ROUND_MODES {
         let (value, status) = value.scalbn_ex(exp, round);
-        assert_eq!(status, FpStatus::Ok);
+        assert_eq!(status, FpStatus::OK);
         assert_eq!(value.to_bits(), expected_res.to_bits());
     }
 
@@ -909,19 +948,19 @@ where
 {
     for round in ALL_ROUND_MODES {
         let (value, status) = lhs.add_ex(rhs, round);
-        assert_eq!(status, FpStatus::Ok);
+        assert_eq!(status, FpStatus::OK);
         assert_eq!(value.to_bits(), expected_res.to_bits());
 
         let (value, status) = rhs.add_ex(lhs, round);
-        assert_eq!(status, FpStatus::Ok);
+        assert_eq!(status, FpStatus::OK);
         assert_eq!(value.to_bits(), expected_res.to_bits());
 
         let (value, status) = lhs.sub_ex(-rhs, round);
-        assert_eq!(status, FpStatus::Ok);
+        assert_eq!(status, FpStatus::OK);
         assert_eq!(value.to_bits(), expected_res.to_bits());
 
         let (value, status) = rhs.sub_ex(-lhs, round);
-        assert_eq!(status, FpStatus::Ok);
+        assert_eq!(status, FpStatus::OK);
         assert_eq!(value.to_bits(), expected_res.to_bits());
     }
 
@@ -997,11 +1036,11 @@ where
 {
     for round in ALL_ROUND_MODES {
         let (value, status) = lhs.mul_ex(rhs, round);
-        assert_eq!(status, FpStatus::Ok);
+        assert_eq!(status, FpStatus::OK);
         assert_eq!(value.to_bits(), expected_res.to_bits());
 
         let (value, status) = rhs.mul_ex(lhs, round);
-        assert_eq!(status, FpStatus::Ok);
+        assert_eq!(status, FpStatus::OK);
         assert_eq!(value.to_bits(), expected_res.to_bits());
     }
 
@@ -1050,7 +1089,7 @@ where
 {
     for round in ALL_ROUND_MODES {
         let (value, status) = lhs.div_ex(rhs, round);
-        assert_eq!(status, FpStatus::Ok);
+        assert_eq!(status, FpStatus::OK);
         assert_eq!(value.to_bits(), expected_res.to_bits());
     }
 
