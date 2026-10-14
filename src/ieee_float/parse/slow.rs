@@ -133,9 +133,7 @@ fn calc_significand<const N: usize>(
     }
 
     // Normalize `den` for `shl_div_rem`, which does not change `num / den`.
-    let norm_shift = (64 - den.bit_len() % 64) % 64;
-    num.shl(norm_shift);
-    den.shl(norm_shift);
+    BigUInt::shl_normalized(&mut num, &mut den, 0, 0);
 
     // Calculate `mant = floor(num * 2^prec_bits / den)`, which has exactly
     // `prec_bits` bits, up to 64 bits at a time. After each step, `num` holds
@@ -145,22 +143,14 @@ fn calc_significand<const N: usize>(
     let mut rem_bits = prec_bits;
     while rem_bits != 0 {
         let bits = rem_bits.min(64);
+        // Otherwise, the quotient would not fit in `bits` bits.
+        debug_assert!(num < den);
         mant = (mant << bits) | u128::from(num.shl_div_rem(bits, &den));
         rem_bits -= bits;
     }
 
     // `w * 10^q = (mant + num / den) * 2^(e2 - prec_bits)`
-    let loss = if num.is_zero() {
-        RoundLoss::Zero
-    } else {
-        num.shl(1);
-        match num.cmp(&den) {
-            core::cmp::Ordering::Less => RoundLoss::HalfDown,
-            core::cmp::Ordering::Equal => RoundLoss::Halfway,
-            core::cmp::Ordering::Greater => RoundLoss::HalfUp,
-        }
-    };
-    (mant, e2, loss)
+    (mant, e2, num.frac_round_loss(&den))
 }
 
 /// Returns the number of limbs that `calc_significand` needs for each big

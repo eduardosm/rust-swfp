@@ -849,6 +849,182 @@ where
     );
 }
 
+/// Checks the formatting of NaN, infinities and zeros.
+fn check_fmt_specials<F>(has_inf: bool, has_neg_zero: bool)
+where
+    F: Float + std::fmt::Display + std::fmt::LowerExp + std::fmt::UpperExp,
+{
+    // NaN is never written with a sign.
+    let v = F::NAN;
+    assert_eq!(format!("{v}"), "NaN");
+    assert_eq!(format!("{v:?}"), "NaN");
+    assert_eq!(format!("{v:e}"), "NaN");
+    assert_eq!(format!("{v:E}"), "NaN");
+    assert_eq!(format!("{v:+}"), "NaN");
+    assert_eq!(format!("{v:.3}"), "NaN");
+    assert_eq!(format!("{v:.3e}"), "NaN");
+    assert_eq!(format!("{v:6}"), "   NaN");
+    assert_eq!(format!("{v:<6}"), "NaN   ");
+    assert_eq!(format!("{v:^7}"), "  NaN  ");
+    assert_eq!(format!("{v:*^8}"), "**NaN***");
+    assert_eq!(format!("{v:06}"), "000NaN");
+    assert_eq!(format!("{v:+06}"), "000NaN");
+
+    if has_inf {
+        let v = F::INFINITY;
+        assert_eq!(format!("{v}"), "inf");
+        assert_eq!(format!("{v:?}"), "inf");
+        assert_eq!(format!("{v:e}"), "inf");
+        assert_eq!(format!("{v:E}"), "inf");
+        assert_eq!(format!("{v:+}"), "+inf");
+        assert_eq!(format!("{v:+e}"), "+inf");
+        assert_eq!(format!("{v:.3}"), "inf");
+        assert_eq!(format!("{v:.3e}"), "inf");
+        assert_eq!(format!("{v:6}"), "   inf");
+        assert_eq!(format!("{v:<6}"), "inf   ");
+        assert_eq!(format!("{v:^7}"), "  inf  ");
+        assert_eq!(format!("{v:06}"), "000inf");
+        assert_eq!(format!("{v:+06}"), "+00inf");
+
+        let v = -F::INFINITY;
+        assert_eq!(format!("{v}"), "-inf");
+        assert_eq!(format!("{v:?}"), "-inf");
+        assert_eq!(format!("{v:e}"), "-inf");
+        assert_eq!(format!("{v:E}"), "-inf");
+        assert_eq!(format!("{v:+}"), "-inf");
+        assert_eq!(format!("{v:+e}"), "-inf");
+        assert_eq!(format!("{v:.3}"), "-inf");
+        assert_eq!(format!("{v:.3e}"), "-inf");
+        assert_eq!(format!("{v:6}"), "  -inf");
+        assert_eq!(format!("{v:<6}"), "-inf  ");
+        assert_eq!(format!("{v:^7}"), " -inf  ");
+        assert_eq!(format!("{v:06}"), "-00inf");
+        assert_eq!(format!("{v:+06}"), "-00inf");
+    } else {
+        // Formats without infinities use NaN instead.
+        let v = F::INFINITY;
+        assert_eq!(format!("{v}"), "NaN");
+        assert_eq!(format!("{v:?}"), "NaN");
+        assert_eq!(format!("{v:e}"), "NaN");
+        assert_eq!(format!("{v:+}"), "NaN");
+    }
+
+    let v = F::ZERO;
+    assert_eq!(format!("{v}"), "0");
+    assert_eq!(format!("{v:?}"), "0.0");
+    assert_eq!(format!("{v:e}"), "0e0");
+    assert_eq!(format!("{v:E}"), "0E0");
+    assert_eq!(format!("{v:+}"), "+0");
+    assert_eq!(format!("{v:+?}"), "+0.0");
+    assert_eq!(format!("{v:+e}"), "+0e0");
+    assert_eq!(format!("{v:.0}"), "0");
+    assert_eq!(format!("{v:.2}"), "0.00");
+    assert_eq!(format!("{v:.2?}"), "0.00");
+    assert_eq!(format!("{v:.0e}"), "0e0");
+    assert_eq!(format!("{v:.2e}"), "0.00e0");
+    assert_eq!(format!("{v:.2E}"), "0.00E0");
+    assert_eq!(format!("{v:5}"), "    0");
+    assert_eq!(format!("{v:<5}"), "0    ");
+    assert_eq!(format!("{v:^5}"), "  0  ");
+    assert_eq!(format!("{v:05}"), "00000");
+    assert_eq!(format!("{v:+06.1}"), "+000.0");
+    assert_eq!(format!("{v:7e}"), "    0e0");
+    assert_eq!(format!("{v:07.1e}"), "000.0e0");
+
+    if has_neg_zero {
+        let v = -F::ZERO;
+        assert_eq!(format!("{v}"), "-0");
+        assert_eq!(format!("{v:?}"), "-0.0");
+        assert_eq!(format!("{v:e}"), "-0e0");
+        assert_eq!(format!("{v:E}"), "-0E0");
+        assert_eq!(format!("{v:+}"), "-0");
+        assert_eq!(format!("{v:+?}"), "-0.0");
+        assert_eq!(format!("{v:+e}"), "-0e0");
+        assert_eq!(format!("{v:.0}"), "-0");
+        assert_eq!(format!("{v:.2}"), "-0.00");
+        assert_eq!(format!("{v:.2?}"), "-0.00");
+        assert_eq!(format!("{v:.0e}"), "-0e0");
+        assert_eq!(format!("{v:.2e}"), "-0.00e0");
+        assert_eq!(format!("{v:.2E}"), "-0.00E0");
+        assert_eq!(format!("{v:5}"), "   -0");
+        assert_eq!(format!("{v:<5}"), "-0   ");
+        assert_eq!(format!("{v:^5}"), " -0  ");
+        assert_eq!(format!("{v:05}"), "-0000");
+        assert_eq!(format!("{v:+06.1}"), "-000.0");
+        assert_eq!(format!("{v:7e}"), "   -0e0");
+        assert_eq!(format!("{v:07.1e}"), "-00.0e0");
+    }
+}
+
+/// Checks the formatting with a precision of values that are exactly halfway
+/// between two candidates (which are rounded to even) or very close to that.
+///
+/// `prec_bits` is the precision of `F`, used to skip the values it cannot
+/// represent.
+fn check_fmt_ties<F>(prec_bits: u32)
+where
+    F: Float + std::fmt::Display + std::fmt::LowerExp + std::fmt::UpperExp,
+{
+    // `(num, shift, expected)`, where the value is `num / 2^shift` and
+    // `expected` are its representations with `{:.0}`, `{:.1}`, `{:.2}`,
+    // `{:.0e}` and `{:.1e}`.
+    let cases = [
+        (1, 1, ["0", "0.5", "0.50", "5e-1", "5.0e-1"]),  // 0.5
+        (3, 1, ["2", "1.5", "1.50", "2e0", "1.5e0"]),    // 1.5
+        (5, 1, ["2", "2.5", "2.50", "2e0", "2.5e0"]),    // 2.5
+        (7, 1, ["4", "3.5", "3.50", "4e0", "3.5e0"]),    // 3.5
+        (1, 2, ["0", "0.2", "0.25", "2e-1", "2.5e-1"]),  // 0.25
+        (3, 2, ["1", "0.8", "0.75", "8e-1", "7.5e-1"]),  // 0.75
+        (5, 2, ["1", "1.2", "1.25", "1e0", "1.2e0"]),    // 1.25
+        (7, 2, ["2", "1.8", "1.75", "2e0", "1.8e0"]),    // 1.75
+        (1, 3, ["0", "0.1", "0.12", "1e-1", "1.2e-1"]),  // 0.125
+        (3, 3, ["0", "0.4", "0.38", "4e-1", "3.8e-1"]),  // 0.375
+        (5, 3, ["1", "0.6", "0.62", "6e-1", "6.2e-1"]),  // 0.625
+        (7, 3, ["1", "0.9", "0.88", "9e-1", "8.8e-1"]),  // 0.875
+        (1, 4, ["0", "0.1", "0.06", "6e-2", "6.2e-2"]),  // 0.0625
+        (9, 1, ["4", "4.5", "4.50", "4e0", "4.5e0"]),    // 4.5
+        (11, 1, ["6", "5.5", "5.50", "6e0", "5.5e0"]),   // 5.5
+        (13, 2, ["3", "3.2", "3.25", "3e0", "3.2e0"]),   // 3.25
+        (15, 4, ["1", "0.9", "0.94", "9e-1", "9.4e-1"]), // 0.9375
+        (19, 1, ["10", "9.5", "9.50", "1e1", "9.5e0"]),  // 9.5
+        (25, 1, ["12", "12.5", "12.50", "1e1", "1.2e1"]), // 12.5
+        (25, 2, ["6", "6.2", "6.25", "6e0", "6.2e0"]),   // 6.25
+        (125, 1, ["62", "62.5", "62.50", "6e1", "6.2e1"]), // 62.5
+        (199, 1, ["100", "99.5", "99.50", "1e2", "1.0e2"]), // 99.5
+        (5, 5, ["0", "0.2", "0.16", "2e-1", "1.6e-1"]),  // 0.15625
+        (1999, 1, ["1000", "999.5", "999.50", "1e3", "1.0e3"]), // 999.5
+        (2047, 1, ["1024", "1023.5", "1023.50", "1e3", "1.0e3"]), // 1023.5
+        (1029, 3, ["129", "128.6", "128.62", "1e2", "1.3e2"]), // 128.625
+        (65, 6, ["1", "1.0", "1.02", "1e0", "1.0e0"]),   // 1.015625
+    ];
+
+    for (num, shift, expected) in cases {
+        if num >= 1 << prec_bits {
+            continue;
+        }
+
+        let v = F::from_int(num).scalbn(-shift);
+        let actual = [
+            format!("{v:.0}"),
+            format!("{v:.1}"),
+            format!("{v:.2}"),
+            format!("{v:.0e}"),
+            format!("{v:.1e}"),
+        ];
+        assert_eq!(actual, expected);
+
+        let v = -v;
+        let actual = [
+            format!("{v:.0}"),
+            format!("{v:.1}"),
+            format!("{v:.2}"),
+            format!("{v:.0e}"),
+            format!("{v:.1e}"),
+        ];
+        assert_eq!(actual, expected.map(|s| format!("-{s}")));
+    }
+}
+
 fn check_round_int_exact<F>(value: F)
 where
     F: Float<Bits: std::fmt::Debug>,

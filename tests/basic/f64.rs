@@ -3,8 +3,9 @@ use std::num::FpCategory;
 use swfp::{Float as _, FloatConvertFrom, FpStatus};
 
 use crate::{
-    ALL_ROUND_MODES, Loss, check_category, check_from_str_exact, check_from_str_round,
-    check_round_int_exact, check_round_int_round, mk_f64, test_from_str_specials,
+    ALL_ROUND_MODES, Loss, check_category, check_fmt_specials, check_fmt_ties,
+    check_from_str_exact, check_from_str_round, check_round_int_exact, check_round_int_round,
+    mk_f64, test_from_str_specials,
 };
 
 #[test]
@@ -610,42 +611,204 @@ fn test_from_str() {
 }
 
 #[test]
+fn test_fmt_specials() {
+    check_fmt_specials::<swfp::F64>(true, true);
+    check_fmt_ties::<swfp::F64>(53);
+}
+
+#[test]
 fn test_fmt() {
     fn test(host_value: f64) {
-        let expected = format!("{host_value}");
-        let actual = format!("{}", swfp::F64::from_host(host_value));
+        let value = swfp::F64::from_host(host_value);
+
+        macro_rules! check {
+            ($($spec:literal)*) => {
+                $(
+                    let expected = format!($spec, host_value);
+                    let actual = format!($spec, value);
+                    assert_eq!(expected, actual);
+                )*
+            };
+        }
+        check!(
+            "{}" "{:?}" "{:e}" "{:E}" "{:+}" "{:.0}" "{:.2}" "{:.3e}" "{:.100e}" "{:.3?}"
+            "{:12.4}" "{:<+14.3e}" "{:^15?}" "{:016.6}"
+        );
+    }
+
+    // Also with many digits, which is slower.
+    fn test_long(host_value: f64) {
+        test(host_value);
+
+        let expected = format!("{host_value:.1080}");
+        let actual = format!("{:.1080}", swfp::F64::from_host(host_value));
         assert_eq!(expected, actual);
 
-        let expected = format!("{host_value:e}");
-        let actual = format!("{:e}", swfp::F64::from_host(host_value));
-        assert_eq!(expected, actual);
-
-        let expected = format!("{host_value:.100e}");
-        let actual = format!("{:.100e}", swfp::F64::from_host(host_value));
-        assert_eq!(expected, actual);
-
-        let expected = format!("{host_value:.3e}");
-        let actual = format!("{:.3e}", swfp::F64::from_host(host_value));
+        let expected = format!("{host_value:.800e}");
+        let actual = format!("{:.800e}", swfp::F64::from_host(host_value));
         assert_eq!(expected, actual);
     }
 
-    test(f64::MIN_POSITIVE);
-    test(f64::MAX);
-    test(f64::MIN);
-    test(f64::EPSILON);
+    test(f64::NAN);
+    test(-f64::NAN);
+    test(f64::INFINITY);
+    test(f64::NEG_INFINITY);
+    test_long(f64::MIN_POSITIVE);
+    test_long(f64::MAX);
+    test_long(f64::MIN);
+    test_long(f64::EPSILON);
 
     for i in 0..=100_000 {
         test(i as f64);
         test(-(i as f64));
+        test(i as f64 / 100.0);
+        test(i as f64 / 1024.0);
     }
 
+    // Every exponent
+    for sign in [0, 1] {
+        for exp in 0..=0x7FF {
+            for mant in [0, 1, 1 << 51, (1 << 52) - 1] {
+                let bits = (sign << 63) | (exp << 52) | mant;
+                test_long(f64::from_bits(bits));
+            }
+        }
+    }
+
+    // Single bits of the significand
     for i in 0..52 {
-        test(f64::from_bits(1 << i));
+        test_long(f64::from_bits(1 << i));
+        test_long(f64::from_bits((1 << i) | (1 << 52)));
     }
 
-    for i in 0..51 {
-        test(f64::from_bits((1 << i) | (1 << 52)));
+    // Powers of ten
+    for i in -323..=308 {
+        let host_value = format!("1e{i}").parse::<f64>().unwrap();
+        test_long(host_value);
+        test_long(-host_value);
     }
+
+    // Pseudo-random values
+    let mut bits: u64 = 1;
+    for _ in 0..100_000 {
+        bits = bits
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        test(f64::from_bits(bits));
+    }
+}
+
+#[test]
+fn test_fmt_debug() {
+    let v = swfp::F64::ZERO;
+    assert_eq!(format!("{v:?}"), "0.0");
+    assert_eq!(format!("{v:+?}"), "+0.0");
+    assert_eq!(format!("{v:.3?}"), "0.000");
+
+    let v = -swfp::F64::ZERO;
+    assert_eq!(format!("{v:?}"), "-0.0");
+    assert_eq!(format!("{v:+?}"), "-0.0");
+    assert_eq!(format!("{v:.3?}"), "-0.000");
+
+    let v = swfp::F64::from_int(1);
+    assert_eq!(format!("{v:?}"), "1.0");
+    assert_eq!(format!("{v:+?}"), "+1.0");
+
+    let v = swfp::F64::from_int(-1);
+    assert_eq!(format!("{v:?}"), "-1.0");
+    assert_eq!(format!("{v:+?}"), "-1.0");
+
+    let v = swfp::F64::from_host(f64::MAX);
+    assert_eq!(format!("{v:?}"), "1.7976931348623157e308");
+
+    let v = swfp::F64::from_host(f64::MIN_POSITIVE);
+    assert_eq!(format!("{v:?}"), "2.2250738585072014e-308");
+
+    let v = swfp::F64::from_bits(1);
+    assert_eq!(format!("{v:?}"), "5e-324");
+
+    let v = swfp::F64::from_host(1.41);
+    assert_eq!(format!("{v:?}"), "1.41");
+    assert_eq!(format!("{v:+?}"), "+1.41");
+    assert_eq!(format!("{v:.4?}"), "1.4100");
+    assert_eq!(format!("{v:07?}"), "0001.41");
+    assert_eq!(format!("{v:+07?}"), "+001.41");
+    assert_eq!(format!("{v:+08.3?}"), "+001.410");
+    assert_eq!(format!("{v:8?}"), "    1.41");
+    assert_eq!(format!("{v:+8?}"), "   +1.41");
+    assert_eq!(format!("{v:8.4?}"), "  1.4100");
+    assert_eq!(format!("{v:+8.4?}"), " +1.4100");
+    assert_eq!(format!("{v:<8?}"), "1.41    ");
+    assert_eq!(format!("{v:<+8?}"), "+1.41   ");
+    assert_eq!(format!("{v:<8.4?}"), "1.4100  ");
+    assert_eq!(format!("{v:<+8.4?}"), "+1.4100 ");
+    assert_eq!(format!("{v:^8?}"), "  1.41  ");
+
+    let v = swfp::F64::from_host(-1.41);
+    assert_eq!(format!("{v:?}"), "-1.41");
+    assert_eq!(format!("{v:+?}"), "-1.41");
+    assert_eq!(format!("{v:.4?}"), "-1.4100");
+    assert_eq!(format!("{v:07?}"), "-001.41");
+    assert_eq!(format!("{v:+07?}"), "-001.41");
+    assert_eq!(format!("{v:+08.3?}"), "-001.410");
+    assert_eq!(format!("{v:8?}"), "   -1.41");
+    assert_eq!(format!("{v:+8?}"), "   -1.41");
+    assert_eq!(format!("{v:8.4?}"), " -1.4100");
+    assert_eq!(format!("{v:+8.4?}"), " -1.4100");
+    assert_eq!(format!("{v:<8?}"), "-1.41   ");
+    assert_eq!(format!("{v:<+8?}"), "-1.41   ");
+    assert_eq!(format!("{v:<8.4?}"), "-1.4100 ");
+    assert_eq!(format!("{v:<+8.4?}"), "-1.4100 ");
+    assert_eq!(format!("{v:^8?}"), " -1.41  ");
+
+    let v = swfp::F64::from_host(10.41);
+    assert_eq!(format!("{v:?}"), "10.41");
+    assert_eq!(format!("{v:+?}"), "+10.41");
+    assert_eq!(format!("{v:.4?}"), "10.4100");
+    assert_eq!(format!("{v:07?}"), "0010.41");
+    assert_eq!(format!("{v:+08.3?}"), "+010.410");
+    assert_eq!(format!("{v:8?}"), "   10.41");
+    assert_eq!(format!("{v:<8?}"), "10.41   ");
+
+    let v = swfp::F64::from_host(0.1);
+    assert_eq!(format!("{v:?}"), "0.1");
+    assert_eq!(format!("{v:.20?}"), "0.10000000000000000555");
+
+    let v = swfp::F64::from_host(0.1) + swfp::F64::from_host(0.2);
+    assert_eq!(format!("{v:?}"), "0.30000000000000004");
+
+    let v = swfp::F64::from_host(1e3);
+    assert_eq!(format!("{v:?}"), "1000.0");
+
+    let v = swfp::F64::from_host(1.0e15);
+    assert_eq!(format!("{v:?}"), "1000000000000000.0");
+
+    let v = swfp::F64::from_host(1.2e15);
+    assert_eq!(format!("{v:?}"), "1200000000000000.0");
+
+    let v = swfp::F64::from_host(9999999999999998.0);
+    assert_eq!(format!("{v:?}"), "9999999999999998.0");
+
+    let v = swfp::F64::from_host(1.0e16);
+    assert_eq!(format!("{v:?}"), "1e16");
+
+    let v = swfp::F64::from_host(1.2e16);
+    assert_eq!(format!("{v:?}"), "1.2e16");
+
+    let v = swfp::F64::from_host(1.0e-4);
+    assert_eq!(format!("{v:?}"), "0.0001");
+
+    let v = swfp::F64::from_host(1.2e-4);
+    assert_eq!(format!("{v:?}"), "0.00012");
+
+    let v = swfp::F64::from_host(9.999999999999999e-5);
+    assert_eq!(format!("{v:?}"), "9.999999999999999e-5");
+
+    let v = swfp::F64::from_host(1.0e-5);
+    assert_eq!(format!("{v:?}"), "1e-5");
+
+    let v = swfp::F64::from_host(1.2e-5);
+    assert_eq!(format!("{v:?}"), "1.2e-5");
 }
 
 #[test]
