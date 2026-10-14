@@ -44,7 +44,6 @@ macro_rules! horner {
     };
 }
 
-mod core_num;
 mod f128;
 mod f16;
 mod f32;

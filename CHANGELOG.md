@@ -18,7 +18,7 @@
 
 ### Changed
 
-- Performance of floating point parsing has been improved.
+- Performance of floating point parsing and formatting has been improved.
 
 ### Fixed
 

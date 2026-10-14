@@ -5,11 +5,12 @@ use swfp::{Float as _, FloatConvertFrom, FpStatus, Round};
 
 use crate::{
     ALL_ROUND_MODES, Loss, check_add_sub_exact, check_add_sub_round, check_category,
-    check_div_exact, check_div_round, check_frexp, check_from_int_exact, check_from_int_round,
-    check_from_str_exact, check_from_str_round, check_from_uint_exact, check_from_uint_round,
-    check_mul_exact, check_mul_round, check_rem, check_round_int_exact, check_round_int_round,
-    check_scalbn_exact, check_scalbn_round, check_to_int_exact, check_to_int_round,
-    check_to_uint_exact, check_to_uint_round, mk_f32, test_from_str_specials,
+    check_div_exact, check_div_round, check_fmt_specials, check_fmt_ties, check_frexp,
+    check_from_int_exact, check_from_int_round, check_from_str_exact, check_from_str_round,
+    check_from_uint_exact, check_from_uint_round, check_mul_exact, check_mul_round, check_rem,
+    check_round_int_exact, check_round_int_round, check_scalbn_exact, check_scalbn_round,
+    check_to_int_exact, check_to_int_round, check_to_uint_exact, check_to_uint_round, mk_f32,
+    test_from_str_specials,
 };
 
 #[test]
@@ -725,6 +726,92 @@ fn test_from_str() {
         swfp::F32::from_bits(0x3FC00001),
         Loss::HalfDown,
     );
+}
+
+#[test]
+fn test_fmt_specials() {
+    check_fmt_specials::<swfp::F32>(true, true);
+    check_fmt_ties::<swfp::F32>(24);
+}
+
+#[test]
+fn test_fmt() {
+    fn test(host_value: f32) {
+        let value = swfp::F32::from_host(host_value);
+
+        macro_rules! check {
+            ($($spec:literal)*) => {
+                $(
+                    let expected = format!($spec, host_value);
+                    let actual = format!($spec, value);
+                    assert_eq!(expected, actual);
+                )*
+            };
+        }
+        check!(
+            "{}" "{:?}" "{:e}" "{:E}" "{:+}" "{:.0}" "{:.2}" "{:.3e}" "{:.100e}" "{:.3?}"
+            "{:12.4}" "{:<+14.3e}" "{:^15?}" "{:016.6}"
+        );
+    }
+
+    // Also with many digits, which is slower.
+    fn test_long(host_value: f32) {
+        test(host_value);
+
+        let expected = format!("{host_value:.150}");
+        let actual = format!("{:.150}", swfp::F32::from_host(host_value));
+        assert_eq!(expected, actual);
+
+        let expected = format!("{host_value:.120e}");
+        let actual = format!("{:.120e}", swfp::F32::from_host(host_value));
+        assert_eq!(expected, actual);
+    }
+
+    test(f32::NAN);
+    test(-f32::NAN);
+    test(f32::INFINITY);
+    test(f32::NEG_INFINITY);
+    test_long(f32::MIN_POSITIVE);
+    test_long(f32::MAX);
+    test_long(f32::MIN);
+    test_long(f32::EPSILON);
+
+    for i in 0..=100_000 {
+        test(i as f32);
+        test(-(i as f32));
+        test(i as f32 / 100.0);
+        test(i as f32 / 1024.0);
+    }
+
+    // Every exponent
+    for sign in [0, 1] {
+        for exp in 0..=0xFF {
+            for mant in [0, 1, 1 << 22, (1 << 23) - 1] {
+                let bits = (sign << 31) | (exp << 23) | mant;
+                test_long(f32::from_bits(bits));
+            }
+        }
+    }
+
+    // Single bits of the significand
+    for i in 0..23 {
+        test_long(f32::from_bits(1 << i));
+        test_long(f32::from_bits((1 << i) | (1 << 23)));
+    }
+
+    // Powers of ten
+    for i in -45..=38 {
+        let host_value = format!("1e{i}").parse::<f32>().unwrap();
+        test_long(host_value);
+        test_long(-host_value);
+    }
+
+    // Pseudo-random values
+    let mut bits: u32 = 1;
+    for _ in 0..100_000 {
+        bits = bits.wrapping_mul(1664525).wrapping_add(1013904223);
+        test(f32::from_bits(bits));
+    }
 }
 
 #[test]

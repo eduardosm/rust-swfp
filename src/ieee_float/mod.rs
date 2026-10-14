@@ -2,10 +2,12 @@ use core::num::FpCategory;
 
 use crate::traits::{CastFrom, CastInto as _, Int, SInt, UInt};
 use crate::utils::{self, RoundLoss};
-use crate::{Float as _, FpStatus, Round, core_num};
+use crate::{FpStatus, Round};
 
 mod biguint;
+mod fmt;
 mod parse;
+mod pow5;
 
 pub(crate) trait Semantics: Copy {
     type Bits: UInt + From<Self::Mant> + CastFrom<Self::Exp>;
@@ -512,11 +514,11 @@ impl<S: Semantics> IeeeFloat<S> {
     }
 
     pub(crate) fn fmt_debug(self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        core_num::fmt_float::float_to_general_debug(fmt, &self)
+        fmt::debug(self, fmt)
     }
 
     pub(crate) fn fmt_display(self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        core_num::fmt_float::float_to_decimal_display(fmt, &self)
+        fmt::display(self, fmt)
     }
 
     pub(crate) fn fmt_exp(
@@ -524,7 +526,7 @@ impl<S: Semantics> IeeeFloat<S> {
         fmt: &mut core::fmt::Formatter<'_>,
         upper: bool,
     ) -> core::fmt::Result {
-        core_num::fmt_float::float_to_exponential_common(fmt, &self, upper)
+        fmt::exp(self, fmt, upper)
     }
 
     pub(crate) fn round_int(self, round: Round) -> (Self, FpStatus) {
@@ -1687,71 +1689,6 @@ impl<S: Semantics> core::ops::Neg for IeeeFloat<S> {
                 ..self
             }
         }
-    }
-}
-
-impl<S: Semantics> core_num::fmt_float::GeneralFormat for IeeeFloat<S> {
-    fn already_rounded_value_should_use_exponential(&self) -> bool {
-        let abs = self.abs();
-        let e16 = IeeeFloat::from_uint(10_000_000_000_000_000, Round::NearestTiesToEven).0;
-        let em4 = crate::F128::from_uint(1) / crate::F128::from_uint(10_000);
-        let em4 = IeeeFloat::convert_from(em4.0, Round::NearestTiesToEven).0;
-        (abs.category != FpCategory::Zero && abs < em4) || abs >= e16
-    }
-}
-
-impl<S: Semantics> core_num::flt2dec::DecodableFloat for IeeeFloat<S> {
-    const IS_LARGE: bool = S::PREC_BITS > 53 || S::EXP_BITS > 11;
-
-    fn decode(self) -> (/*negative?*/ bool, core_num::flt2dec::FullDecoded) {
-        use core_num::flt2dec::{Decoded, FullDecoded};
-        let decoded = match self.category {
-            FpCategory::Nan => FullDecoded::Nan,
-            FpCategory::Infinite => FullDecoded::Infinite,
-            FpCategory::Zero => FullDecoded::Zero,
-            FpCategory::Normal | FpCategory::Subnormal => {
-                let mant: u128 = self.mant.into();
-                if self.exp < S::min_normal_exp() {
-                    let shift: u32 = (S::min_normal_exp() - self.exp).cast_into();
-                    let mant = mant >> (shift - 1);
-                    let exp =
-                        S::min_normal_exp() - S::Exp::ONE - S::Exp::cast_from(S::MANT_FRAC_BITS);
-                    // neighbors: (mant - 2, exp) -- (mant, exp) -- (mant + 2, exp)
-                    FullDecoded::Finite(Decoded {
-                        mant,
-                        minus: 1,
-                        plus: 1,
-                        exp: exp.cast_into(),
-                        inclusive: true,
-                    })
-                } else {
-                    let exp: i16 = (self.exp - S::Exp::cast_from(S::MANT_FRAC_BITS)).cast_into();
-                    let even = (self.mant & S::Mant::ONE) == S::Mant::ZERO;
-                    let minnorm_mant = S::Mant::ONE << S::MANT_FRAC_BITS;
-                    if self.mant == minnorm_mant {
-                        // neighbors: (maxmant, exp - 1) -- (minnormmant, exp) -- (minnormmant + 1, exp)
-                        // where maxmant = minnormmant * 2 - 1
-                        FullDecoded::Finite(Decoded {
-                            mant: mant << 2,
-                            minus: 1,
-                            plus: 2,
-                            exp: exp - 2,
-                            inclusive: even,
-                        })
-                    } else {
-                        // neighbors: (mant - 1, exp) -- (mant, exp) -- (mant + 1, exp)
-                        FullDecoded::Finite(Decoded {
-                            mant: mant << 1,
-                            minus: 1,
-                            plus: 1,
-                            exp: exp - 1,
-                            inclusive: even,
-                        })
-                    }
-                }
-            }
-        };
-        (self.sign, decoded)
     }
 }
 

@@ -61,7 +61,38 @@ impl RoundLoss {
             RoundLoss::Halfway
         }
     }
+
+    /// Returns the loss of discarding a fractional part of `frac / 2^(2 * B)`,
+    /// where `frac = frac_hi * 2^B + frac_lo` and `B` is `T::BITS`.
+    ///
+    /// `from_wide_shift(lo, hi, shift)` is equivalent to using the low
+    /// `shift` bits of the value as the high bits of `frac`. This function
+    /// is faster when `shift` is not a constant, and it is also able to
+    /// handle a `shift` of `2 * B`.
+    #[inline]
+    pub(crate) fn from_wide_frac<T: UInt>(frac_lo: T, frac_hi: T) -> Self {
+        let half_hi = T::ONE << (T::BITS - 1);
+        if frac_hi < half_hi {
+            if frac_hi == T::ZERO && frac_lo == T::ZERO {
+                RoundLoss::Zero
+            } else {
+                RoundLoss::HalfDown
+            }
+        } else if frac_hi == half_hi && frac_lo == T::ZERO {
+            RoundLoss::Halfway
+        } else {
+            RoundLoss::HalfUp
+        }
+    }
 }
+
+/// Number of decimal digits of the chunks used to convert between integers
+/// and decimal digits, which is the largest `n` such that `10^n` fits in a
+/// `u64`.
+pub(crate) const DEC_CHUNK_LEN: usize = 19;
+
+/// `10^DEC_CHUNK_LEN`
+pub(crate) const DEC_CHUNK_POW10: u64 = 10u64.pow(DEC_CHUNK_LEN as u32);
 
 #[inline]
 pub(crate) fn wide_shift_left<T: UInt>(lo: T, hi: T, shift: u32) -> (T, T) {
@@ -86,5 +117,54 @@ pub(crate) fn wide_shift_right<T: UInt>(lo: T, hi: T, shift: u32) -> (T, T) {
         ((hi << (T::BITS - shift)) | (lo >> shift), hi >> shift)
     } else {
         (lo, hi)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{RoundLoss, wide_shift_left};
+
+    /// Checks `RoundLoss::from_wide_shift` and `RoundLoss::from_wide_frac`
+    /// with every 16-bit value split in two `u8`.
+    #[test]
+    fn test_wide_round_loss() {
+        fn expected(frac: u32, half: u32) -> RoundLoss {
+            if frac == 0 {
+                RoundLoss::Zero
+            } else {
+                match frac.cmp(&half) {
+                    core::cmp::Ordering::Less => RoundLoss::HalfDown,
+                    core::cmp::Ordering::Equal => RoundLoss::Halfway,
+                    core::cmp::Ordering::Greater => RoundLoss::HalfUp,
+                }
+            }
+        }
+
+        for value in 0..=u16::MAX {
+            let [lo, hi] = value.to_le_bytes();
+            assert_eq!(
+                RoundLoss::from_wide_frac(lo, hi),
+                expected(value.into(), 1 << 15),
+                "value = {value}",
+            );
+
+            for shift in 1..16 {
+                let lost = u32::from(value) & ((1 << shift) - 1);
+                let expected = expected(lost, 1 << (shift - 1));
+                assert_eq!(
+                    RoundLoss::from_wide_shift(lo, hi, shift),
+                    expected,
+                    "value = {value}, shift = {shift}",
+                );
+
+                // The lost bits as the high bits of the fraction.
+                let (frac_lo, frac_hi) = wide_shift_left(lo, hi, 16 - shift);
+                assert_eq!(
+                    RoundLoss::from_wide_frac(frac_lo, frac_hi),
+                    expected,
+                    "value = {value}, shift = {shift}",
+                );
+            }
+        }
     }
 }

@@ -3,9 +3,9 @@ use std::num::FpCategory;
 use swfp::{Float as _, FloatConvertFrom, FpStatus, Round};
 
 use crate::{
-    ALL_ROUND_MODES, Loss, check_category, check_compare, check_from_str_exact,
-    check_from_str_round, check_round_int_exact, check_round_int_round, mk_f8e4m3b8nnz,
-    test_from_str_specials,
+    ALL_ROUND_MODES, Loss, check_category, check_compare, check_fmt_specials, check_fmt_ties,
+    check_from_str_exact, check_from_str_round, check_round_int_exact, check_round_int_round,
+    mk_f8e4m3b8nnz, test_from_str_specials,
 };
 
 #[test]
@@ -206,6 +206,245 @@ fn test_from_str() {
         check_from_str_round(&format!("+{s}"), tz, az, loss);
         check_from_str_round(&format!("-{s}"), -tz, -az, loss);
     }
+}
+
+#[test]
+fn test_fmt_specials() {
+    check_fmt_specials::<swfp::F8E4M3B8Nnz>(false, false);
+    check_fmt_ties::<swfp::F8E4M3B8Nnz>(4);
+}
+
+#[test]
+fn test_fmt_debug() {
+    let v = swfp::F8E4M3B8Nnz::from_int(1);
+    assert_eq!(format!("{v:?}"), "1.0");
+    assert_eq!(format!("{v:+?}"), "+1.0");
+    assert_eq!(format!("{v:.3?}"), "1.000");
+
+    let v = swfp::F8E4M3B8Nnz::from_int(-1);
+    assert_eq!(format!("{v:?}"), "-1.0");
+    assert_eq!(format!("{v:+?}"), "-1.0");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x41); // 1.125
+    assert_eq!(format!("{v:?}"), "1.1");
+    assert_eq!(format!("{v:+?}"), "+1.1");
+    assert_eq!(format!("{v:.1?}"), "1.1");
+    assert_eq!(format!("{v:.3?}"), "1.125");
+    assert_eq!(format!("{v:07?}"), "00001.1");
+    assert_eq!(format!("{v:+07?}"), "+0001.1");
+    assert_eq!(format!("{v:7?}"), "    1.1");
+    assert_eq!(format!("{v:+7?}"), "   +1.1");
+    assert_eq!(format!("{v:<7?}"), "1.1    ");
+    assert_eq!(format!("{v:<+7?}"), "+1.1   ");
+    assert_eq!(format!("{v:^7?}"), "  1.1  ");
+    assert_eq!(format!("{v:07.3?}"), "001.125");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0xC1); // -1.125
+    assert_eq!(format!("{v:?}"), "-1.1");
+    assert_eq!(format!("{v:+?}"), "-1.1");
+    assert_eq!(format!("{v:.3?}"), "-1.125");
+    assert_eq!(format!("{v:07?}"), "-0001.1");
+    assert_eq!(format!("{v:7?}"), "   -1.1");
+    assert_eq!(format!("{v:<7?}"), "-1.1   ");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x2D); // 0.203125
+    assert_eq!(format!("{v:?}"), "0.2");
+    assert_eq!(format!("{v:.4?}"), "0.2031");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x7B); // 176
+    assert_eq!(format!("{v:?}"), "180.0");
+    assert_eq!(format!("{v:.1?}"), "176.0");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x7F); // MAX
+    assert_eq!(format!("{v:?}"), "240.0");
+    assert_eq!(format!("{v:.1?}"), "240.0");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x08); // MIN normal
+    assert_eq!(format!("{v:?}"), "0.008");
+    assert_eq!(format!("{v:.4?}"), "0.0078");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x07); // MAX subnormal
+    assert_eq!(format!("{v:?}"), "0.007");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x01); // MIN subnormal
+    assert_eq!(format!("{v:?}"), "0.001");
+    assert_eq!(format!("{v:.10?}"), "0.0009765625");
+}
+
+#[test]
+fn test_fmt_display() {
+    let v = swfp::F8E4M3B8Nnz::from_int(1);
+    assert_eq!(format!("{v}"), "1");
+    assert_eq!(format!("{v:+}"), "+1");
+    assert_eq!(format!("{v:.3}"), "1.000");
+
+    let v = swfp::F8E4M3B8Nnz::from_int(-1);
+    assert_eq!(format!("{v}"), "-1");
+    assert_eq!(format!("{v:+}"), "-1");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x41); // 1.125
+    assert_eq!(format!("{v}"), "1.1");
+    assert_eq!(format!("{v:+}"), "+1.1");
+    assert_eq!(format!("{v:.0}"), "1");
+    assert_eq!(format!("{v:.1}"), "1.1");
+    assert_eq!(format!("{v:.2}"), "1.12");
+    assert_eq!(format!("{v:.3}"), "1.125");
+    assert_eq!(format!("{v:.5}"), "1.12500");
+    assert_eq!(format!("{v:07}"), "00001.1");
+    assert_eq!(format!("{v:+07}"), "+0001.1");
+    assert_eq!(format!("{v:7}"), "    1.1");
+    assert_eq!(format!("{v:+7}"), "   +1.1");
+    assert_eq!(format!("{v:<7}"), "1.1    ");
+    assert_eq!(format!("{v:<+7}"), "+1.1   ");
+    assert_eq!(format!("{v:^7}"), "  1.1  ");
+    assert_eq!(format!("{v:*>7.1}"), "****1.1");
+    assert_eq!(format!("{v:+07.2}"), "+001.12");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0xC1); // -1.125
+    assert_eq!(format!("{v}"), "-1.1");
+    assert_eq!(format!("{v:+}"), "-1.1");
+    assert_eq!(format!("{v:.1}"), "-1.1");
+    assert_eq!(format!("{v:07}"), "-0001.1");
+    assert_eq!(format!("{v:7}"), "   -1.1");
+    assert_eq!(format!("{v:<7}"), "-1.1   ");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x47); // 1.875
+    assert_eq!(format!("{v}"), "1.9");
+    assert_eq!(format!("{v:.0}"), "2");
+    assert_eq!(format!("{v:.1}"), "1.9");
+    assert_eq!(format!("{v:.2}"), "1.88");
+    assert_eq!(format!("{v:.3}"), "1.875");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x2D); // 0.203125
+    assert_eq!(format!("{v}"), "0.2");
+    assert_eq!(format!("{v:.1}"), "0.2");
+    assert_eq!(format!("{v:.2}"), "0.20");
+    assert_eq!(format!("{v:.3}"), "0.203");
+    assert_eq!(format!("{v:.4}"), "0.2031");
+    assert_eq!(format!("{v:.8}"), "0.20312500");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x5C); // 12
+    assert_eq!(format!("{v}"), "12");
+    assert_eq!(format!("{v:.1}"), "12.0");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x7B); // 176
+    assert_eq!(format!("{v}"), "180");
+    assert_eq!(format!("{v:.0}"), "176");
+    assert_eq!(format!("{v:.2}"), "176.00");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x7F); // MAX
+    assert_eq!(format!("{v}"), "240");
+    assert_eq!(format!("{v:.0}"), "240");
+    assert_eq!(format!("{v:.2}"), "240.00");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x08); // MIN normal
+    assert_eq!(format!("{v}"), "0.008");
+    assert_eq!(format!("{v:.2}"), "0.01");
+    assert_eq!(format!("{v:.4}"), "0.0078");
+    assert_eq!(format!("{v:.10}"), "0.0078125000");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x07); // MAX subnormal
+    assert_eq!(format!("{v}"), "0.007");
+    assert_eq!(format!("{v:.10}"), "0.0068359375");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x01); // MIN subnormal
+    assert_eq!(format!("{v}"), "0.001");
+    assert_eq!(format!("{v:.2}"), "0.00");
+    assert_eq!(format!("{v:.4}"), "0.0010");
+    assert_eq!(format!("{v:.10}"), "0.0009765625");
+    assert_eq!(format!("{v:.14}"), "0.00097656250000");
+}
+
+#[test]
+fn test_fmt_exp() {
+    let v = swfp::F8E4M3B8Nnz::from_int(1);
+    assert_eq!(format!("{v:e}"), "1e0");
+    assert_eq!(format!("{v:E}"), "1E0");
+    assert_eq!(format!("{v:+e}"), "+1e0");
+    assert_eq!(format!("{v:.2e}"), "1.00e0");
+    assert_eq!(format!("{v:.2E}"), "1.00E0");
+
+    let v = swfp::F8E4M3B8Nnz::from_int(-1);
+    assert_eq!(format!("{v:e}"), "-1e0");
+    assert_eq!(format!("{v:+e}"), "-1e0");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x41); // 1.125
+    assert_eq!(format!("{v:e}"), "1.1e0");
+    assert_eq!(format!("{v:E}"), "1.1E0");
+    assert_eq!(format!("{v:+e}"), "+1.1e0");
+    assert_eq!(format!("{v:.0e}"), "1e0");
+    assert_eq!(format!("{v:.1e}"), "1.1e0");
+    assert_eq!(format!("{v:.2e}"), "1.12e0");
+    assert_eq!(format!("{v:.3e}"), "1.125e0");
+    assert_eq!(format!("{v:.5E}"), "1.12500E0");
+    assert_eq!(format!("{v:09e}"), "00001.1e0");
+    assert_eq!(format!("{v:+09e}"), "+0001.1e0");
+    assert_eq!(format!("{v:9e}"), "    1.1e0");
+    assert_eq!(format!("{v:+9e}"), "   +1.1e0");
+    assert_eq!(format!("{v:<9e}"), "1.1e0    ");
+    assert_eq!(format!("{v:<+9e}"), "+1.1e0   ");
+    assert_eq!(format!("{v:^9e}"), "  1.1e0  ");
+    assert_eq!(format!("{v:+010.2e}"), "+0001.12e0");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0xC1); // -1.125
+    assert_eq!(format!("{v:e}"), "-1.1e0");
+    assert_eq!(format!("{v:+e}"), "-1.1e0");
+    assert_eq!(format!("{v:.1e}"), "-1.1e0");
+    assert_eq!(format!("{v:09e}"), "-0001.1e0");
+    assert_eq!(format!("{v:9e}"), "   -1.1e0");
+    assert_eq!(format!("{v:<9e}"), "-1.1e0   ");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x47); // 1.875
+    assert_eq!(format!("{v:e}"), "1.9e0");
+    assert_eq!(format!("{v:.0e}"), "2e0");
+    assert_eq!(format!("{v:.1e}"), "1.9e0");
+    assert_eq!(format!("{v:.2e}"), "1.88e0");
+    assert_eq!(format!("{v:.3e}"), "1.875e0");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x2D); // 0.203125
+    assert_eq!(format!("{v:e}"), "2e-1");
+    assert_eq!(format!("{v:.0e}"), "2e-1");
+    assert_eq!(format!("{v:.1e}"), "2.0e-1");
+    assert_eq!(format!("{v:.2e}"), "2.03e-1");
+    assert_eq!(format!("{v:.6e}"), "2.031250e-1");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x5C); // 12
+    assert_eq!(format!("{v:e}"), "1.2e1");
+    assert_eq!(format!("{v:.0e}"), "1e1");
+    assert_eq!(format!("{v:.2e}"), "1.20e1");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x7B); // 176
+    assert_eq!(format!("{v:e}"), "1.8e2");
+    assert_eq!(format!("{v:E}"), "1.8E2");
+    assert_eq!(format!("{v:.0e}"), "2e2");
+    assert_eq!(format!("{v:.1e}"), "1.8e2");
+    assert_eq!(format!("{v:.3e}"), "1.760e2");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x7F); // MAX
+    assert_eq!(format!("{v:e}"), "2.4e2");
+    assert_eq!(format!("{v:E}"), "2.4E2");
+    assert_eq!(format!("{v:.0e}"), "2e2");
+    assert_eq!(format!("{v:.1e}"), "2.4e2");
+    assert_eq!(format!("{v:.4e}"), "2.4000e2");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x08); // MIN normal
+    assert_eq!(format!("{v:e}"), "8e-3");
+    assert_eq!(format!("{v:.0e}"), "8e-3");
+    assert_eq!(format!("{v:.2e}"), "7.81e-3");
+    assert_eq!(format!("{v:.5e}"), "7.81250e-3");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x07); // MAX subnormal
+    assert_eq!(format!("{v:e}"), "7e-3");
+    assert_eq!(format!("{v:.2e}"), "6.84e-3");
+    assert_eq!(format!("{v:.5e}"), "6.83594e-3");
+
+    let v = swfp::F8E4M3B8Nnz::from_bits(0x01); // MIN subnormal
+    assert_eq!(format!("{v:e}"), "1e-3");
+    assert_eq!(format!("{v:E}"), "1E-3");
+    assert_eq!(format!("{v:.0e}"), "1e-3");
+    assert_eq!(format!("{v:.2e}"), "9.77e-4");
+    assert_eq!(format!("{v:.5e}"), "9.76562e-4");
+    assert_eq!(format!("{v:.10E}"), "9.7656250000E-4");
 }
 
 #[test]
