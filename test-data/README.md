@@ -1,9 +1,9 @@
 # Test data
 
 Data in `core-math` comes from the [core-math project](https://gitlab.inria.fr/core-math/core-math/),
-commit 284b3b0e198042c38f5c30316f696786b10816b0 (Thu Oct 1 11:54:08 2026 -0700).
+commit 0ce0cbc15935e24c656280e5a46c34e89f301b7a (Tue Oct 20 15:42:06 2026 +0200).
 
-Remaining test data, is generated with:
+Remaining test data is generated with:
 
 ```sh
 cargo run -p generator --release -- test-data f16::pow > test-data/f16/pow.txt
