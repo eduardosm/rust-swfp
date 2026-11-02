@@ -1,6 +1,6 @@
-use swfp::{F16, math::InvHyperbolic as _};
+use swfp::{F16, Float as _, math::InvHyperbolic as _};
 
-use super::{check_exact, mk_normal, mk_subnormal, to_rug};
+use super::{check_exact, to_rug, values};
 
 #[test]
 fn test_asinh() {
@@ -8,7 +8,11 @@ fn test_asinh() {
 
     test_asinh_with(|x| {
         let actual = x.asinh();
-        assert_total_eq!((-x).asinh(), -actual);
+        if actual.is_nan() {
+            assert_total_eq!((-x).asinh(), actual);
+        } else {
+            assert_total_eq!((-x).asinh(), -actual);
+        }
 
         let mut expected = to_rug(x);
         let round_cmp = expected.asinh_round(rug::float::Round::Nearest);
@@ -49,7 +53,11 @@ fn test_atanh() {
 
     test_atanh_with(|x| {
         let actual = x.atanh();
-        assert_total_eq!((-x).atanh(), -actual);
+        if actual.is_nan() {
+            assert_total_eq!((-x).atanh(), actual);
+        } else {
+            assert_total_eq!((-x).atanh(), -actual);
+        }
 
         let mut expected = to_rug(x);
         let round_cmp = expected.atanh_round(rug::float::Round::Nearest);
@@ -65,31 +73,48 @@ fn test_atanh() {
 }
 
 fn test_asinh_with(mut f: impl FnMut(F16)) {
-    for e in -14..=15 {
-        for m in 0..(1 << 10) {
-            f(mk_normal(m, e, false));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
     }
-    for m in 0..(1 << 10) {
-        f(mk_subnormal(m, false));
+
+    // Exhaustive test of all normal numbers
+    for x in values::binades_full(-14..=15) {
+        f(x);
+    }
+
+    // Exhaustive test of all subnormal numbers
+    for x in values::subnormals_full() {
+        f(x);
     }
 }
 
 fn test_acosh_with(mut f: impl FnMut(F16)) {
-    for e in 0..=15 {
-        for m in 0..(1 << 10) {
-            f(mk_normal(m, e, false));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
+        f(-x);
+    }
+
+    // Exhaustive test of all normal numbers above one
+    for x in values::binades_full(0..=15) {
+        f(x);
     }
 }
 
 fn test_atanh_with(mut f: impl FnMut(F16)) {
-    for e in -14..=-1 {
-        for m in 0..(1 << 10) {
-            f(mk_normal(m, e, false));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
     }
-    for m in 0..(1 << 10) {
-        f(mk_subnormal(m, false));
+
+    // Exhaustive test of all normal numbers below one
+    for x in values::binades_full(-14..=-1) {
+        f(x);
+    }
+
+    // Exhaustive test of all subnormal numbers
+    for x in values::subnormals_full() {
+        f(x);
     }
 }

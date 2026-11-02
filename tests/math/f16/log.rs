@@ -1,6 +1,6 @@
 use swfp::{F16, math::Log as _};
 
-use super::{check_exact, mk_normal, mk_subnormal, to_rug};
+use super::{check_exact, to_rug, values};
 
 #[test]
 fn test_ln() {
@@ -123,31 +123,43 @@ fn test_log10_1p() {
 }
 
 fn test_log_with(mut f: impl FnMut(F16)) {
-    for e in -14..=15 {
-        for m in 0..(1 << 10) {
-            f(mk_normal(m, e, false));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
+        f(-x);
     }
-    for m in 0..(1 << 10) {
-        f(mk_subnormal(m, false));
+
+    // Exhaustive test of all normal numbers
+    for x in values::binades_full(-14..=15) {
+        f(x);
+    }
+
+    // Exhaustive test of all subnormal numbers
+    for x in values::subnormals_full() {
+        f(x);
     }
 }
 
 fn test_log_1p_with(mut f: impl FnMut(F16)) {
-    for e in -14..=15 {
-        for m in 0..(1 << 10) {
-            f(mk_normal(m, e, false));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
+        f(-x);
     }
-    for m in 0..(1 << 10) {
-        f(mk_subnormal(m, false));
-        f(mk_subnormal(m, true));
+
+    // Exhaustive test of all normal numbers
+    for x in values::binades_full(-14..=15) {
+        f(x);
+    }
+
+    // Exhaustive test of all subnormal numbers
+    for x in values::subnormals_full() {
+        f(x);
+        f(-x);
     }
 
     // -1 < x < 0
-    for e in -14..=-1 {
-        for m in 0..(1 << 10) {
-            f(mk_normal(m, e, true));
-        }
+    for x in values::binades_full(-14..=-1) {
+        f(-x);
     }
 }

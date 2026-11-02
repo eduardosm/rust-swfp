@@ -47,6 +47,7 @@ mod f16;
 mod f32;
 mod f64;
 mod generic;
+mod utils;
 mod x87f80;
 
 trait TotalEq {
@@ -102,8 +103,3 @@ impl TestFloat for swfp::F32 {}
 impl TestFloat for swfp::F64 {}
 impl TestFloat for swfp::F128 {}
 impl TestFloat for swfp::X87F80 {}
-
-fn create_prng() -> impl rand::Rng {
-    use rand::SeedableRng as _;
-    rand_pcg::Pcg64::seed_from_u64(0xB05C_3028_6B30_9158)
-}

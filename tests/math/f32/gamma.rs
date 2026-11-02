@@ -1,6 +1,6 @@
 use swfp::{F32, Float as _, math::Gamma as _};
 
-use super::{check_exact, mk_normal, mk_subnormal, to_rug};
+use super::{check_exact, to_rug, values};
 
 #[test]
 fn test_gamma() {
@@ -31,7 +31,11 @@ fn test_ln_gamma() {
 
         let mut expected = to_rug(x);
         let (ord, round_cmp) = expected.ln_abs_gamma_round(rug::float::Round::Nearest);
-        let expected_sign = if x < F32::ZERO && x.trunc() == x {
+        if x == -F32::INFINITY {
+            // The gamma function is not defined at -∞ (MPFR returns +∞)
+            expected = to_rug(F32::NAN);
+        }
+        let expected_sign = if x.is_nan() || (x < F32::ZERO && x.trunc() == x) {
             0
         } else {
             ord as i8
@@ -49,24 +53,23 @@ fn test_ln_gamma() {
 }
 
 fn test_with(mut f: impl FnMut(F32)) {
-    let mut rng = crate::create_prng();
-
-    for e in -126..=127 {
-        f(mk_normal(0, e, false));
-        f(mk_normal(0, e, true));
-        f(mk_normal((1 << 23) - 1, e, false));
-        f(mk_normal((1 << 23) - 1, e, true));
-        let n = if e <= 6 { 10_000 } else { 2000 };
-        for _ in 0..n {
-            let m = super::gen_mantissa(&mut rng);
-            f(mk_normal(m, e, false));
-            f(mk_normal(m, e, true));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
+        f(-x);
     }
 
-    for m in 0..(1 << 23) {
-        f(mk_subnormal(m, false));
-        f(mk_subnormal(m, true));
+    // Test across a wide range of normal numbers, with more values at the
+    // binades below 2^7
+    for x in values::binades(-126..=6, 10_000).chain(values::binades(7..=127, 2000)) {
+        f(x);
+        f(-x);
+    }
+
+    // Exhaustive test of all subnormal numbers
+    for x in values::subnormals_full() {
+        f(x);
+        f(-x);
     }
 
     for x in 1..=20_000 {

@@ -1,6 +1,6 @@
-use swfp::{F16, math::Sqrt as _};
+use swfp::{F16, Float as _, math::Sqrt as _};
 
-use super::{check_exact, mk_normal, mk_subnormal, to_rug};
+use super::{check_exact, to_rug, values};
 
 #[test]
 fn test_sqrt() {
@@ -30,21 +30,32 @@ fn test_sqrt() {
 
         for &(swfp_round, rug_round) in round_modes.iter() {
             let (actual, status) = x.sqrt_ex(swfp_round);
-
-            let mut expected = to_rug(x);
-            let round_cmp = expected.sqrt_round(rug_round);
-            check_exact(x, actual, Some(status), expected, round_cmp, rug_round);
+            if x.is_nan() {
+                // `from_rug` assumes that NaN results come from invalid
+                // operations, but a NaN argument does not raise any exception
+                assert_total_eq!((actual, status), (F16::NAN, swfp::FpStatus::OK));
+            } else {
+                let mut expected = to_rug(x);
+                let round_cmp = expected.sqrt_round(rug_round);
+                check_exact(x, actual, Some(status), expected, round_cmp, rug_round);
+            }
         }
     });
 }
 
 fn test_with(mut f: impl FnMut(F16)) {
-    for e in -14..=15 {
-        for m in 0..(1 << 10) {
-            f(mk_normal(m, e, false));
-        }
+    // Test special values
+    for x in values::specials().chain([-F16::ZERO]) {
+        f(x);
     }
-    for m in 0..(1 << 10) {
-        f(mk_subnormal(m, false));
+
+    // Exhaustive test of all normal numbers
+    for x in values::binades_full(-14..=15) {
+        f(x);
+    }
+
+    // Exhaustive test of all subnormal numbers
+    for x in values::subnormals_full() {
+        f(x);
     }
 }

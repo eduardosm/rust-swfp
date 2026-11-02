@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use swfp::Float as _;
 
 mod cbrt;
@@ -13,6 +11,7 @@ mod log;
 mod pow;
 mod sqrt;
 mod trigonometric;
+mod values;
 
 fn mk_normal(m: u32, e: i16, s: bool) -> swfp::F32 {
     assert!(m < (1 << 23));
@@ -154,39 +153,3 @@ fn check_exact(
         assert_eq!(actual_status, expected_status, "input = {input:?}");
     }
 }
-
-fn gen_mantissa(rng: &mut impl rand::RngExt) -> u32 {
-    rng.random::<u32>() >> (32 - 23)
-}
-
-static NORMAL_MANTISSAS: std::sync::LazyLock<BTreeSet<u32>> = std::sync::LazyLock::new(|| {
-    let mut mantissas = BTreeSet::new();
-
-    mantissas.insert(0);
-
-    for i in 1..=18 {
-        let w = (1 << i) - 1;
-        for i in 0..(23 - i) {
-            mantissas.insert(w << i);
-        }
-    }
-
-    for i in 0x1..=0xF {
-        mantissas.insert((i * 0x0011_1111) >> 1);
-        mantissas.insert((i * 0x0010_1010) >> 1);
-        mantissas.insert((i * 0x0001_0101) >> 1);
-        mantissas.insert((i * 0x0011_0011) >> 1);
-        mantissas.insert((i * 0x0001_1000) >> 1);
-    }
-
-    for i in 0x1..=0xF {
-        for j in 0x1..=0xF {
-            if i != j {
-                mantissas.insert(((i * 0x0010_1010) | (j * 0x0001_0101)) >> 1);
-                mantissas.insert(((i * 0x0011_0011) | (j * 0x0000_1100)) >> 1);
-            }
-        }
-    }
-
-    mantissas
-});

@@ -1,7 +1,6 @@
-use rand::RngExt as _;
 use swfp::{F64, Float as _, math::Gamma as _};
 
-use super::{check_exact, mk_normal, mk_subnormal, to_rug};
+use super::{check_exact, to_rug, values};
 
 #[test]
 fn test_gamma() {
@@ -32,7 +31,11 @@ fn test_ln_gamma() {
 
         let mut expected = to_rug(x);
         let (ord, round_cmp) = expected.ln_abs_gamma_round(rug::float::Round::Nearest);
-        let expected_sign = if x < F64::ZERO && x.trunc() == x {
+        if x == -F64::INFINITY {
+            // The gamma function is not defined at -∞ (MPFR returns +∞)
+            expected = to_rug(F64::NAN);
+        }
+        let expected_sign = if x.is_nan() || (x < F64::ZERO && x.trunc() == x) {
             0
         } else {
             ord as i8
@@ -50,23 +53,22 @@ fn test_ln_gamma() {
 }
 
 fn test_with(mut f: impl FnMut(F64)) {
-    let mut rng = crate::create_prng();
-
-    for e in -1022..=1023 {
-        f(mk_normal(0, e, false));
-        f(mk_normal(0, e, true));
-        f(mk_normal((1 << 52) - 1, e, false));
-        f(mk_normal((1 << 52) - 1, e, true));
-        for _ in 0..2000 {
-            let m = super::gen_mantissa(&mut rng);
-            f(mk_normal(m, e, false));
-            f(mk_normal(m, e, true));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
+        f(-x);
     }
 
-    for &m in super::SUBNORMAL_MANTISSAS.iter() {
-        f(mk_subnormal(m, false));
-        f(mk_subnormal(m, true));
+    // Test across a wide range of normal numbers
+    for x in values::binades(-1022..=1023, 2000) {
+        f(x);
+        f(-x);
+    }
+
+    // Test a set of subnormal values
+    for x in values::subnormals(10_000) {
+        f(x);
+        f(-x);
     }
 
     for x in 1..=20_000 {
@@ -123,15 +125,12 @@ fn test_with(mut f: impl FnMut(F64)) {
             f(x);
         }
 
-        // Further away from the root
-        for shift in 14..48 {
-            for _ in 0..16 {
-                let bump = (1 << shift) | (rng.random::<u64>() & ((1 << shift) - 1));
-
-                let x = F64::from_bits(root.to_bits() + bump);
-                f(x);
-
-                let x = F64::from_bits(root.to_bits() - bump);
+        // Further away from the root, in intervals that extend from 2^15 to
+        // 2^48 ULPs at each side of it (so each scale of distances gets a
+        // similar number of values)
+        for shift in 15..=48 {
+            let w = (F64::from_bits(root.to_bits() + (1 << shift)) - root).abs();
+            for x in values::interval(root - w, root + w, 32) {
                 f(x);
             }
         }

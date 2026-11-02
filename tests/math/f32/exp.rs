@@ -1,6 +1,6 @@
 use swfp::{F32, Float as _, math::Exp as _};
 
-use super::{check_exact, mk_normal, mk_subnormal, to_rug};
+use super::{check_exact, to_rug, values};
 
 #[test]
 fn test_exp() {
@@ -123,23 +123,22 @@ fn test_exp10_m1() {
 }
 
 fn test_with(mut f: impl FnMut(F32)) {
-    let mut rng = crate::create_prng();
-
-    for e in -126..=127 {
-        f(mk_normal(0, e, false));
-        f(mk_normal(0, e, true));
-        f(mk_normal((1 << 23) - 1, e, false));
-        f(mk_normal((1 << 23) - 1, e, true));
-        for _ in 0..20_000 {
-            let m = super::gen_mantissa(&mut rng);
-            f(mk_normal(m, e, false));
-            f(mk_normal(m, e, true));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
+        f(-x);
     }
 
-    for m in 0..(1 << 23) {
-        f(mk_subnormal(m, false));
-        f(mk_subnormal(m, true));
+    // Test across a wide range of normal numbers
+    for x in values::binades(-126..=127, 20_000) {
+        f(x);
+        f(-x);
+    }
+
+    // Exhaustive test of all subnormal numbers
+    for x in values::subnormals_full() {
+        f(x);
+        f(-x);
     }
 
     for x in -200..=200 {

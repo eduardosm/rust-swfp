@@ -1,6 +1,6 @@
 use swfp::{F64, Float as _, math::Hypot as _};
 
-use super::{check_exact, mk_normal, mk_subnormal, to_rug};
+use super::{check_exact, mk_normal, mk_subnormal, to_rug, values};
 
 #[test]
 fn test_hypot() {
@@ -46,28 +46,26 @@ fn test_hypot() {
 }
 
 fn test_with(mut f: impl FnMut(F64, F64)) {
-    let mut rng = crate::create_prng();
+    // Swapping the arguments and toggling their signs is done by the caller.
 
-    for ex in -1022..=1023 {
-        if matches!(ex, -900..=900) && (ex & 3) != 3 {
-            continue; // speed up tests
-        }
-        for ey in -1022..=1023 {
-            if matches!(ey, -900..=900) && (ey & 3) != 3 {
-                continue; // speed up tests
-            }
-            for _ in 0..20 {
-                let mx = super::gen_mantissa(&mut rng);
-                let my = super::gen_mantissa(&mut rng);
-                f(mk_normal(mx, ex, false), mk_normal(my, ey, false));
-            }
-        }
+    // Test the exponent differences where both arguments affect the result
+    // when rounding to nearest (the smaller one stops affecting it when it is
+    // less than 2^-27 times the larger one), at many scales, including
+    // subnormals
+    for (x, y) in values::binade_pairs(values::exp_pairs(0..=30, 8), 1000) {
+        f(x, y);
     }
 
-    for _ in 0..2_000_000 {
-        let mx = super::gen_mantissa(&mut rng);
-        let my = super::gen_mantissa(&mut rng);
-        f(mk_subnormal(mx, false), mk_subnormal(my, false));
+    // Test larger exponent differences at some scales
+    for (x, y) in values::binade_pairs(values::exp_pairs((31..=2097).step_by(7), 29), 1) {
+        f(x, y);
+    }
+
+    // Test more pairs of subnormal numbers, at every combination of their
+    // binades
+    let subnormal_exps = (-1074..=-1023).flat_map(|ex| (-1074..=ex).map(move |ey| (ex, ey)));
+    for (x, y) in values::binade_pairs(subnormal_exps, 1000) {
+        f(x, y);
     }
 
     let specials = [

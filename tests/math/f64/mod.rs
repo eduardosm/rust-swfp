@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use swfp::Float as _;
 
 mod cbrt;
@@ -13,6 +11,7 @@ mod log;
 mod pow;
 mod sqrt;
 mod trigonometric;
+mod values;
 
 fn mk_normal(m: u64, e: i16, s: bool) -> swfp::F64 {
     assert!(m < (1 << 52));
@@ -160,76 +159,3 @@ fn check_exact(
         assert_eq!(actual_status, expected_status, "input = {input:?}");
     }
 }
-
-static NORMAL_MANTISSAS: std::sync::LazyLock<BTreeSet<u64>> = std::sync::LazyLock::new(|| {
-    let mut mantissas = BTreeSet::new();
-
-    mantissas.insert(0);
-
-    for i in 1..=32 {
-        let w = (1 << i) - 1;
-        for i in 0..(52 - i) {
-            mantissas.insert(w << i);
-        }
-    }
-
-    for i in 0x1..=0xF {
-        mantissas.insert(i * 0x0001_1111_1111_1111);
-        mantissas.insert(i * 0x0000_1010_1010_1010);
-        mantissas.insert(i * 0x0001_0101_0101_0101);
-        mantissas.insert(i * 0x0000_1100_1100_1100);
-        mantissas.insert(i * 0x0001_0011_0011_0011);
-        mantissas.insert(i * 0x0000_1111_0000_1111);
-        mantissas.insert(i * 0x0001_0000_1111_0000);
-        mantissas.insert(i * 0x0000_1111_1111_0000);
-        mantissas.insert(i * 0x0001_0000_0000_1111);
-        mantissas.insert(i * 0x0000_1111_1111_1111);
-    }
-
-    for i in 0x1..=0xF {
-        for j in 0x1..=0xF {
-            if i != j {
-                mantissas.insert((i * 0x0000_1010_1010_1010) | (j * 0x0001_0101_0101_0101));
-                mantissas.insert((i * 0x0000_1100_1100_1100) | (j * 0x0001_0011_0011_0011));
-                mantissas.insert((i * 0x0000_1111_0000_1111) | (j * 0x0001_0000_1111_0000));
-                mantissas.insert((i * 0x0000_1111_1111_0000) | (j * 0x0001_0000_0000_1111));
-                mantissas.insert((i * 0x0000_1111_1111_1111) | (j * 0x0001_0000_0000_0000));
-            }
-        }
-    }
-
-    mantissas
-});
-
-fn gen_mantissa(rng: &mut impl rand::RngExt) -> u64 {
-    rng.random::<u64>() >> (64 - 52)
-}
-
-static SUBNORMAL_MANTISSAS: std::sync::LazyLock<BTreeSet<u64>> = std::sync::LazyLock::new(|| {
-    let mut mantissas = BTreeSet::new();
-
-    for i in 1..=32 {
-        let w = (1 << i) - 1;
-        for i in 0..(52 - i) {
-            mantissas.insert(w << i);
-        }
-    }
-
-    for i in 0x1..=0xF {
-        mantissas.insert(i * 0x0000_0000_0000_0001);
-        mantissas.insert(i * 0x0000_0000_0000_0011);
-        mantissas.insert(i * 0x0000_0000_0000_0111);
-        mantissas.insert(i * 0x0000_0000_0000_1111);
-        mantissas.insert(i * 0x0000_0000_0001_1111);
-        mantissas.insert(i * 0x0000_0000_0011_1111);
-        mantissas.insert(i * 0x0000_0000_0111_1111);
-        mantissas.insert(i * 0x0000_0000_1111_1111);
-        mantissas.insert(i * 0x0000_0001_1111_1111);
-        mantissas.insert(i * 0x0000_0011_1111_1111);
-        mantissas.insert(i * 0x0000_0111_1111_1111);
-        mantissas.insert(i * 0x0000_1111_1111_1111);
-        mantissas.insert(i * 0x0001_1111_1111_1111);
-    }
-
-    mantissas
-});
