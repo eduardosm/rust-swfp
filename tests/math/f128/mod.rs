@@ -1,6 +1,7 @@
 use swfp::Float as _;
 
 mod sqrt;
+mod values;
 
 fn mk_normal(m: u128, e: i16, s: bool) -> swfp::F128 {
     assert!(m < (1 << 112));
@@ -147,8 +148,4 @@ fn check_exact(
     if let Some(actual_status) = actual_status {
         assert_eq!(actual_status, expected_status, "input = {input:?}");
     }
-}
-
-fn gen_mantissa(rng: &mut impl rand::RngExt) -> u128 {
-    rng.random::<u128>() >> (128 - 112)
 }

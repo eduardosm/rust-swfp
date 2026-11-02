@@ -1,8 +1,6 @@
-use rand::RngExt as _;
-
 use swfp::{F64, Float as _, math::Pow as _};
 
-use super::{check_exact, mk_normal, to_rug};
+use super::{PREC, check_exact, from_rug, mk_normal, to_rug, to_rug_prec, values};
 
 #[test]
 fn test_pow() {
@@ -10,6 +8,7 @@ fn test_pow() {
 
     test_pow_with(|x, y| {
         let actual = x.pow(y);
+        check_neg_base(x, y);
 
         let mut expected = to_rug(x);
         let round_cmp = rug::ops::PowAssignRound::pow_assign_round(
@@ -28,12 +27,43 @@ fn test_pow() {
     });
 }
 
+/// Checks `pow(-|x|, y)` against `pow(|x|, y)`: they are equal when `y` is an
+/// even integer (or infinite) and opposite when it is an odd integer. When `y`
+/// is not an integer, `pow(-|x|, y)` is NaN if `x` is finite and non-zero, and
+/// equal to `pow(|x|, y)` otherwise.
+fn check_neg_base(x: F64, y: F64) {
+    let pos = x.abs().pow(y);
+    let neg = (-x.abs()).pow(y);
+    if y.is_infinite() || y % F64::from_uint(2) == F64::ZERO {
+        assert_total_eq!(neg, pos);
+    } else if y.trunc() == y {
+        if pos.is_nan() {
+            assert_total_eq!(neg, pos);
+        } else {
+            assert_total_eq!(neg, -pos);
+        }
+    } else if x.is_finite() && x != F64::ZERO {
+        assert!(neg.is_nan(), "pow({:?}, {y:?}) = {neg:?}", -x.abs());
+    } else {
+        assert_total_eq!(neg, pos);
+    }
+}
+
 #[test]
 fn test_powi() {
     crate::generic::test_powi_special::<F64>();
 
     test_powi_with(|x, n| {
         let actual = x.powi(n);
+        if let (y, swfp::FpStatus::OK) = F64::from_int_ex(n.into(), swfp::Round::NearestTiesToEven)
+        {
+            assert_total_eq!(x.pow(y), actual);
+        }
+        if n % 2 == 0 || actual.is_nan() {
+            assert_total_eq!((-x).powi(n), actual);
+        } else {
+            assert_total_eq!((-x).powi(n), -actual);
+        }
 
         let mut expected = to_rug(x);
         let round_cmp = rug::ops::PowAssignRound::pow_assign_round(
@@ -53,46 +83,43 @@ fn test_powi() {
 }
 
 fn test_pow_with(mut f: impl FnMut(F64, F64)) {
-    let mut rng = crate::create_prng();
+    // Negative bases are tested by `check_neg_base`.
 
-    for ex in -1022..=1023 {
-        if matches!(ex, -900..=900) && (ex & 15) != 15 {
-            continue; // speed up tests
-        }
-        for ey in -1022..=1023 {
-            if matches!(ey, -900..=900) && (ey & 15) != 15 {
-                continue; // speed up tests
-            }
-            for _ in 0..20 {
-                let mx = super::gen_mantissa(&mut rng);
-                let my = super::gen_mantissa(&mut rng);
-                let x = mk_normal(mx, ex, false);
-                let y = mk_normal(my, ey, false);
-                f(x, y);
-                f(x, -y);
-                f(-x, y);
-                f(-x, -y);
-            }
+    // Test special values
+    for x in values::specials().chain([F64::from_uint(1)]) {
+        for y in values::specials().chain(special_exponents()) {
+            f(x, y);
+            f(x, -y);
         }
     }
 
-    let one = F64::from_uint(1);
-    for ex in -51..=-1 {
-        for ey in 1..=1023 {
-            if matches!(ey, 10..=900) && (ey & 3) != 3 {
-                continue; // speed up tests
-            }
-            for _ in 0..500 {
-                let mx = super::gen_mantissa(&mut rng);
-                let x = one + mk_normal(mx, ex, false);
-
-                let my = super::gen_mantissa(&mut rng);
-                let y = mk_normal(my, ey, false);
-
-                f(x, y);
-                f(x, -y);
-            }
+    // Test halves and small integers as exponents with bases at many binades
+    for x in values::binades((-1022..=1023).step_by(3), 0).chain(values::subnormals(10)) {
+        for y in [half(1), half(2), half(3), half(4), half(6)] {
+            f(x, y);
+            f(x, -y);
         }
+    }
+
+    // Test the largest exponents with bases close to one
+    for x in values::binades([-1, 0], 0) {
+        for y in special_exponents() {
+            f(x, y);
+            f(x, -y);
+        }
+    }
+
+    // Test results spread across the whole range, with bases at every binade,
+    // including subnormals and bases close to one
+    for x in test_bases() {
+        for y in result_targets(x) {
+            f(x, y);
+        }
+    }
+
+    // Test exact results and ties
+    for (x, y) in exact_results() {
+        f(x, y);
     }
 
     // Test data from core-math
@@ -102,41 +129,50 @@ fn test_pow_with(mut f: impl FnMut(F64, F64)) {
 }
 
 fn test_powi_with(mut f: impl FnMut(F64, i32)) {
-    let mut rng = crate::create_prng();
+    // Negative bases are tested by the caller.
 
-    for ex in -1022..=1023 {
-        if matches!(ex, -900..=900) && (ex & 3) != 3 {
-            continue; // speed up tests
+    // Test special values
+    for x in values::specials().chain([F64::from_uint(1)]) {
+        for n in [0, 1, 2, 3, i32::MAX - 1, i32::MAX] {
+            f(x, n);
+            f(x, -n);
         }
-        for n in -128..=128 {
-            for _ in 0..100 {
-                let mx = super::gen_mantissa(&mut rng);
-                let x = mk_normal(mx, ex, false);
-                f(x, n);
-                f(-x, n);
-            }
+        f(x, i32::MIN);
+    }
+
+    // Test small exponents with bases at many binades
+    for x in values::binades((-1022..=1023).step_by(3), 0).chain(values::subnormals(0)) {
+        for n in [1, 2, 3] {
+            f(x, n);
+            f(x, -n);
         }
-        for shift in 0..=25 {
-            for _ in 0..300 {
-                let mx = super::gen_mantissa(&mut rng);
-                let x = mk_normal(mx, ex, false);
-                let n = rng.random::<i32>() >> shift;
-                f(x, n);
-                f(-x, n);
+    }
+
+    // Test larger exponents with bases at the binades around one and spread
+    // across the range
+    let bases = values::binades(-20..=20, 2).chain(values::binades((-1022..=1023).step_by(31), 2));
+    for x in bases {
+        for n in 4..=128 {
+            f(x, n);
+            f(x, -n);
+        }
+    }
+
+    // Test results spread across the whole range, with bases at every binade,
+    // including subnormals and bases close to one (where the exponents can
+    // saturate)
+    for x in test_bases() {
+        for y in result_targets(x) {
+            if y.trunc() == y {
+                f(x, to_i32_saturating(y));
             }
         }
     }
 
-    let one = F64::from_uint(1);
-    for ex in -51..=-1 {
-        for shift in 0..=30 {
-            for _ in 0..2000 {
-                let mx = super::gen_mantissa(&mut rng);
-                let x = one + mk_normal(mx, ex, false);
-                let n = rng.random::<i32>() >> shift;
-
-                f(x, n);
-            }
+    // Test exact results and ties
+    for (x, y) in exact_results() {
+        if y.trunc() == y {
+            f(x, to_i32_saturating(y));
         }
     }
 
@@ -146,5 +182,178 @@ fn test_powi_with(mut f: impl FnMut(F64, i32)) {
             continue;
         };
         f(x, n as i32);
+    }
+}
+
+/// Returns `n / 2`.
+fn half(n: u128) -> F64 {
+    F64::from_uint(n) / F64::from_uint(2)
+}
+
+/// Returns positive exponents that need special handling: halves and small
+/// integers, and the largest integers and non-integers, where the parity
+/// matters for negative bases.
+fn special_exponents() -> impl Iterator<Item = F64> {
+    [
+        half(1),
+        half(2),
+        half(3),
+        half(4),
+        half(6),
+        // Largest non-integer
+        half((1 << 53) - 1),
+        // Largest odd integers
+        F64::from_uint((1 << 52) - 1),
+        F64::from_uint((1 << 52) + 1),
+        F64::from_uint((1 << 53) - 1),
+        // Even integers, all the larger ones are even
+        F64::from_uint(1 << 52),
+        F64::from_uint(1 << 53),
+        mk_normal((1 << 52) - 1, 1023, false),
+    ]
+    .into_iter()
+}
+
+/// Returns positive bases at every binade, including subnormals and bases
+/// close to one, where `y` needs to be large.
+fn test_bases() -> impl Iterator<Item = F64> {
+    let one = F64::from_uint(1);
+    let near_one = values::binades(-53..=-1, 2000).flat_map(move |v| [one + v, one - v]);
+    values::binades(-1022..=1023, 100)
+        .chain(values::subnormals(100))
+        .chain(near_one)
+}
+
+/// Returns exponents `y` such that `x^y` is spread across the whole range.
+///
+/// `log2(x^y) = y * log2(x)` takes evenly spread values in `[-1100, 1050]`
+/// (beyond the overflow and underflow limits), tiny values (results close to
+/// one), and the values at the limits of the range: the overflow threshold,
+/// the smallest normal and subnormal values, and half the smallest subnormal
+/// (which is rounded to zero). Each non-integer exponent is also rounded to an
+/// integer, which tests negative bases too.
+fn result_targets(x: F64) -> Vec<F64> {
+    let log2x = to_rug_prec(x, 128).log2();
+    if log2x.is_zero() {
+        return Vec::new();
+    }
+
+    let seed = x.to_bits();
+    let unit = |s: u64| s as f64 / (1u64 << 32) as f64;
+    let spread = crate::utils::spread(32, 3, seed).map(|s| -1100.0 + 2150.0 * unit(s));
+    let tiny = crate::utils::spread(32, 2, !seed)
+        .zip([1.0, -1.0])
+        .map(|(s, sign)| sign * (-1.0 - 60.0 * unit(s)).exp2());
+    let limits = [1024.0, -1022.0, -1074.0, -1075.0];
+
+    let mut ys = Vec::new();
+    for t in spread.chain(tiny).chain(limits) {
+        let y = round_rug(&(rug::Float::with_val(128, t) / &log2x));
+        ys.push(y);
+        if y.round_ties_away() != y {
+            ys.push(y.round_ties_away());
+        }
+    }
+    ys
+}
+
+/// Rounds `value` to the nearest `F64`.
+fn round_rug(value: &rug::Float) -> F64 {
+    let (value, round_cmp) = rug::Float::with_val_round(PREC, value, rug::float::Round::Nearest);
+    from_rug(value, round_cmp, rug::float::Round::Nearest).0
+}
+
+/// Returns pairs `(x, y)` with `x = m^d * 2^(d * k)` and `y = n / d`, with odd
+/// `m`, so `x^y = m^n * 2^(n * k)` is exact when `m^n` fits in 53 bits, and a
+/// tie between two consecutive values when it has 54 bits.
+///
+/// `k` is chosen so that the results are spread over the whole range, including
+/// subnormals (where they are not exact anymore).
+fn exact_results() -> Vec<(F64, F64)> {
+    let mut cases = Vec::new();
+    for d in [1, 2, 4] {
+        for n in 1..=54 {
+            if n == d || (d != 1 && n % 2 == 0) {
+                // `y` is one, or `n / d` is not in lowest terms (that `y` is
+                // tested with a smaller `d`)
+                continue;
+            }
+
+            // `m^d` must fit in 53 bits, so `x` is exact, and `m^n` in 54 bits
+            let max_m = max_root(d, 53).min(max_root(n, 54));
+            if max_m < 3 {
+                continue;
+            }
+            let ms = [3, 5, 7, max_m - 2, max_m]
+                .into_iter()
+                .chain(
+                    crate::utils::spread(32, 8, (d * 100 + n).into()).map(|s| 3 + s % (max_m - 2)),
+                )
+                .map(|m| m | 1)
+                .filter(|&m| m <= max_m);
+
+            for m in ms {
+                let md = m.pow(d);
+                let mn = m.pow(n);
+                let x_bits = 64 - md.leading_zeros() as i32;
+                let r_bits = 64 - mn.leading_zeros() as i32;
+                let (d, n) = (d as i32, n as i32);
+
+                // `x` is normal and the result is not smaller than half the
+                // smallest subnormal or larger than the largest finite value
+                let k_lo = ((-1022 - x_bits + 1) as f64 / d as f64)
+                    .max((-1075 - r_bits + 1) as f64 / n as f64)
+                    .ceil() as i32;
+                let k_hi = ((1023 - x_bits + 1) as f64 / d as f64)
+                    .min((1023 - r_bits + 1) as f64 / n as f64)
+                    .floor() as i32;
+                if k_lo > k_hi {
+                    continue;
+                }
+
+                let ks = [k_lo, k_lo + 1, 0, k_hi - 1, k_hi].into_iter().chain(
+                    crate::utils::spread(32, 4, m)
+                        .map(move |s| k_lo + (s % (k_hi - k_lo + 1) as u64) as i32),
+                );
+                for k in ks.filter(|k| (k_lo..=k_hi).contains(k)) {
+                    let x = F64::from_uint(md.into()) * exp2i(d * k);
+                    let y = F64::from_int(n.into()) / F64::from_int(d.into());
+                    cases.push((x, y));
+                }
+            }
+        }
+    }
+
+    // Powers of two with results at the limits of the range
+    for t in [1023, 1024, -1022, -1023, -1074, -1075, -1076] {
+        for k in (-1074..=1023).filter(|&k| k != 0 && t % k == 0) {
+            cases.push((exp2i(k), F64::from_int((t / k).into())));
+        }
+    }
+
+    cases
+}
+
+/// Returns the largest `m` such that `m^n < 2^bits`.
+fn max_root(n: u32, bits: u32) -> u64 {
+    let mut m = 2f64.powf(f64::from(bits) / f64::from(n)) as u64 + 1;
+    while m.checked_pow(n).is_none_or(|p| p >= 1 << bits) {
+        m -= 1;
+    }
+    m
+}
+
+/// Returns `2^e`, for `e` from -1074 to 1023.
+fn exp2i(e: i32) -> F64 {
+    assert!(matches!(e, -1074..=1023));
+    F64::from_uint(1).scalbn(e)
+}
+
+/// Converts the integer `y` to `i32`, saturating at the limits of the range.
+fn to_i32_saturating(y: F64) -> i32 {
+    match y.to_int(32) {
+        Some(n) => n as i32,
+        None if y < F64::ZERO => i32::MIN,
+        None => i32::MAX,
     }
 }

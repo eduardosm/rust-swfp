@@ -1,6 +1,6 @@
 use swfp::{F64, Float as _, math::Log as _};
 
-use super::{check_exact, mk_normal, mk_subnormal, to_rug};
+use super::{check_exact, to_rug, values};
 
 #[test]
 fn test_ln() {
@@ -123,32 +123,33 @@ fn test_log10_1p() {
 }
 
 fn test_log_with(mut f: impl FnMut(F64)) {
-    let mut rng = crate::create_prng();
-
-    for e in -1022..=1023 {
-        f(mk_normal(0, e, false));
-        f(mk_normal((1 << 52) - 1, e, false));
-        let n = if matches!(e, -1 | 0) {
-            2_000_000
-        } else {
-            10_000
-        };
-        for _ in 0..n {
-            let m = super::gen_mantissa(&mut rng);
-            f(mk_normal(m, e, false));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
+        f(-x);
     }
 
-    for i in 1..52 {
-        let max_mant = (1 << 52) - 1;
-
-        f(mk_normal(1 << i, 0, false));
-        f(mk_normal(max_mant ^ (1 << i), -1, false));
-        f(mk_normal(max_mant ^ ((1 << (i + 1)) - 1), -1, false));
+    // Test across a wide range of normal numbers
+    for x in values::binades((-1022..=-2).chain(1..=1023), 10_000) {
+        f(x);
     }
 
-    for &m in super::SUBNORMAL_MANTISSAS.iter() {
-        f(mk_subnormal(m, false));
+    // Test more values at the binades around one
+    for x in values::binades(-1..=0, 2_000_000) {
+        f(x);
+    }
+
+    // Test values close to one (`1 + v` and `1 - v` with `v` at each binade
+    // below one), whose results are close to zero
+    let one = F64::from_uint(1);
+    for v in values::binades(-53..=-1, 10_000) {
+        f(one + v);
+        f(one - v);
+    }
+
+    // Test a set of subnormal values
+    for x in values::subnormals(10_000) {
+        f(x);
     }
 
     for x in 1..=200_000 {
@@ -168,20 +169,21 @@ fn test_log_with(mut f: impl FnMut(F64)) {
 }
 
 fn test_log_1p_with(mut f: impl FnMut(F64)) {
-    let mut rng = crate::create_prng();
-
-    for e in -1022..=1023 {
-        f(mk_normal(0, e, false));
-        f(mk_normal((1 << 52) - 1, e, false));
-        for _ in 0..10_000 {
-            let m = super::gen_mantissa(&mut rng);
-            f(mk_normal(m, e, false));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
+        f(-x);
     }
 
-    for &m in super::SUBNORMAL_MANTISSAS.iter() {
-        f(mk_subnormal(m, false));
-        f(mk_subnormal(m, true));
+    // Test across a wide range of normal numbers
+    for x in values::binades(-1022..=1023, 10_000) {
+        f(x);
+    }
+
+    // Test a set of subnormal values
+    for x in values::subnormals(10_000) {
+        f(x);
+        f(-x);
     }
 
     for x in 1..=200_000 {
@@ -189,13 +191,8 @@ fn test_log_1p_with(mut f: impl FnMut(F64)) {
     }
 
     // -1 < x < 0
-    for e in -1022..=-1 {
-        f(mk_normal(0, e, true));
-        f(mk_normal((1 << 52) - 1, e, true));
-        for _ in 0..10_000 {
-            let m = super::gen_mantissa(&mut rng);
-            f(mk_normal(m, e, true));
-        }
+    for x in values::binades(-1022..=-1, 10_000) {
+        f(-x);
     }
 
     // Test data from core-math

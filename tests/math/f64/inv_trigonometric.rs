@@ -1,6 +1,6 @@
 use swfp::{F64, Float as _, math::InvTrigonometric as _};
 
-use super::{check_exact, mk_normal, mk_subnormal, to_rug};
+use super::{check_exact, to_rug, values};
 
 #[test]
 fn test_asin() {
@@ -8,7 +8,11 @@ fn test_asin() {
 
     test_asin_with(|x| {
         let actual = x.asin();
-        assert_total_eq!((-x).asin(), -actual);
+        if actual.is_nan() {
+            assert_total_eq!((-x).asin(), actual);
+        } else {
+            assert_total_eq!((-x).asin(), -actual);
+        }
 
         let mut expected = to_rug(x);
         let round_cmp = expected.asin_round(rug::float::Round::Nearest);
@@ -49,7 +53,11 @@ fn test_atan() {
 
     test_atan_with(|x| {
         let actual = x.atan();
-        assert_total_eq!((-x).atan(), -actual);
+        if actual.is_nan() {
+            assert_total_eq!((-x).atan(), actual);
+        } else {
+            assert_total_eq!((-x).atan(), -actual);
+        }
 
         let mut expected = to_rug(x);
         let round_cmp = expected.atan_round(rug::float::Round::Nearest);
@@ -91,7 +99,11 @@ fn test_asind() {
 
     test_asin_with(|x| {
         let actual = x.asind();
-        assert_total_eq!((-x).asind(), -actual);
+        if actual.is_nan() {
+            assert_total_eq!((-x).asind(), actual);
+        } else {
+            assert_total_eq!((-x).asind(), -actual);
+        }
 
         let mut expected = to_rug(x);
         let round_cmp = expected.asin_u_round(360, rug::float::Round::Nearest);
@@ -132,7 +144,11 @@ fn test_atand() {
 
     test_atan_with(|x| {
         let actual = x.atand();
-        assert_total_eq!((-x).atand(), -actual);
+        if actual.is_nan() {
+            assert_total_eq!((-x).atand(), actual);
+        } else {
+            assert_total_eq!((-x).atand(), -actual);
+        }
 
         let mut expected = to_rug(x);
         let round_cmp = expected.atan_u_round(360, rug::float::Round::Nearest);
@@ -174,7 +190,11 @@ fn test_asinpi() {
 
     test_asin_with(|x| {
         let actual = x.asinpi();
-        assert_total_eq!((-x).asinpi(), -actual);
+        if actual.is_nan() {
+            assert_total_eq!((-x).asinpi(), actual);
+        } else {
+            assert_total_eq!((-x).asinpi(), -actual);
+        }
 
         let mut expected = to_rug(x);
         let round_cmp = expected.asin_pi_round(rug::float::Round::Nearest);
@@ -215,7 +235,11 @@ fn test_atanpi() {
 
     test_atan_with(|x| {
         let actual = x.atanpi();
-        assert_total_eq!((-x).atanpi(), -actual);
+        if actual.is_nan() {
+            assert_total_eq!((-x).atanpi(), actual);
+        } else {
+            assert_total_eq!((-x).atanpi(), -actual);
+        }
 
         let mut expected = to_rug(x);
         let round_cmp = expected.atan_pi_round(rug::float::Round::Nearest);
@@ -252,23 +276,21 @@ fn test_atan2pi() {
 }
 
 fn test_asin_with(mut f: impl FnMut(F64)) {
-    let mut rng = crate::create_prng();
-
-    for e in -1022..=-1 {
-        for &m in super::NORMAL_MANTISSAS.iter() {
-            f(mk_normal(m, e, false));
-        }
-        for _ in 0..5000 {
-            let m = super::gen_mantissa(&mut rng);
-            f(mk_normal(m, e, false));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
     }
 
-    for &m in super::SUBNORMAL_MANTISSAS.iter() {
-        f(mk_subnormal(m, false));
+    // Test across a wide range of normal numbers below one
+    for x in values::binades(-1022..=-1, 5000) {
+        f(x);
     }
 
-    f(F64::from_int(0));
+    // Test a set of subnormal values
+    for x in values::subnormals(10_000) {
+        f(x);
+    }
+
     f(F64::from_int(1));
 
     // Test data from core-math
@@ -287,26 +309,25 @@ fn test_asin_with(mut f: impl FnMut(F64)) {
 }
 
 fn test_acos_with(mut f: impl FnMut(F64)) {
-    let mut rng = crate::create_prng();
-
-    for e in -1022..=-1 {
-        for &m in super::NORMAL_MANTISSAS.iter() {
-            f(mk_normal(m, e, false));
-            f(mk_normal(m, e, true));
-        }
-        for _ in 0..5000 {
-            let m = super::gen_mantissa(&mut rng);
-            f(mk_normal(m, e, false));
-            f(mk_normal(m, e, true));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
+        f(-x);
     }
 
-    for &m in super::SUBNORMAL_MANTISSAS.iter() {
-        f(mk_subnormal(m, false));
-        f(mk_subnormal(m, true));
+    // Test across a wide range of normal numbers with magnitudes below
+    // one
+    for x in values::binades(-1022..=-1, 5000) {
+        f(x);
+        f(-x);
     }
 
-    f(F64::from_int(0));
+    // Test a set of subnormal values
+    for x in values::subnormals(10_000) {
+        f(x);
+        f(-x);
+    }
+
     f(F64::from_int(1));
     f(F64::from_int(-1));
 
@@ -326,25 +347,22 @@ fn test_acos_with(mut f: impl FnMut(F64)) {
 }
 
 fn test_atan_with(mut f: impl FnMut(F64)) {
-    let mut rng = crate::create_prng();
-
-    for e in -1022..=1023 {
-        for &m in super::NORMAL_MANTISSAS.iter() {
-            f(mk_normal(m, e, false));
-        }
-        for _ in 0..5000 {
-            let m = super::gen_mantissa(&mut rng);
-            f(mk_normal(m, e, false));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
     }
 
-    for &m in super::SUBNORMAL_MANTISSAS.iter() {
-        f(mk_subnormal(m, false));
+    // Test across a wide range of normal numbers
+    for x in values::binades(-1022..=1023, 5000) {
+        f(x);
     }
 
-    f(F64::from_int(0));
+    // Test a set of subnormal values
+    for x in values::subnormals(10_000) {
+        f(x);
+    }
+
     f(F64::from_int(1));
-    f(F64::INFINITY);
 
     // Test data from core-math
     for x in crate::data::read_data_file::<F64>("core-math/binary64/atan.wc") {
@@ -362,30 +380,35 @@ fn test_atan_with(mut f: impl FnMut(F64)) {
 }
 
 fn test_atan2_with(mut f: impl FnMut(F64, F64)) {
-    let mut rng = crate::create_prng();
+    // Toggling the sign of `y` is done by the callers.
 
-    for ey in -1022..=1023 {
-        if matches!(ey, -900..=900) && (ey & 3) != 3 {
-            continue; // speed up tests
-        }
-        for ex in -1022..=1023 {
-            if matches!(ex, -900..=900) && (ex & 3) != 3 {
-                continue; // speed up tests
-            }
-            for _ in 0..8 {
-                let my = super::gen_mantissa(&mut rng);
-                let mx = super::gen_mantissa(&mut rng);
-                f(mk_normal(my, ey, false), mk_normal(mx, ex, false));
-                f(mk_normal(my, ey, false), mk_normal(mx, ex, true));
-            }
-        }
+    // Test the ratios `|y / x|` between 2^-64 and 2^64, at many scales,
+    // including subnormals
+    for (y, x) in values::binade_pairs(values::exp_pairs(-64..=64, 32), 4) {
+        f(y, x);
+        f(y, -x);
     }
 
-    for _ in 0..1_000_000 {
-        let mx = super::gen_mantissa(&mut rng);
-        let my = super::gen_mantissa(&mut rng);
-        f(mk_subnormal(my, false), mk_subnormal(mx, false));
-        f(mk_subnormal(my, false), mk_subnormal(mx, true));
+    // Test more values with ratios between 2^-8 and 2^8 at a few scales
+    // (since only the ratio matters away from the limits of the range)
+    for (y, x) in values::binade_pairs(values::exp_pairs(-8..=8, 256), 20_000) {
+        f(y, x);
+        f(y, -x);
+    }
+
+    // Test larger ratios at fewer scales
+    let large_diffs = (65..=2097).step_by(18).flat_map(|d| [d, -d]);
+    for (y, x) in values::binade_pairs(values::exp_pairs(large_diffs, 61), 1) {
+        f(y, x);
+        f(y, -x);
+    }
+
+    // Test more pairs of subnormal numbers, at every combination of their
+    // binades
+    let subnormal_exps = (-1074..=-1023).flat_map(|ey| (-1074..=-1023).map(move |ex| (ey, ex)));
+    for (y, x) in values::binade_pairs(subnormal_exps, 200) {
+        f(y, x);
+        f(y, -x);
     }
 
     let specials = [F64::from_int(1), F64::ZERO, F64::INFINITY];

@@ -1,6 +1,6 @@
 use swfp::{F16, Float as _, math::Hypot as _};
 
-use super::{check_exact, mk_normal, mk_subnormal, to_rug};
+use super::{check_exact, mk_normal, mk_subnormal, to_rug, values};
 
 #[test]
 fn test_hypot() {
@@ -46,21 +46,17 @@ fn test_hypot() {
 }
 
 fn test_with(mut f: impl FnMut(F16, F16)) {
-    let mut rng = crate::create_prng();
+    // Swapping the arguments and toggling their signs is done by the caller.
 
-    for ex in -14..=15 {
-        for ey in -14..=15 {
-            for _ in 0..5000 {
-                let mx = super::gen_mantissa(&mut rng);
-                let my = super::gen_mantissa(&mut rng);
-                f(mk_normal(mx, ex, false), mk_normal(my, ey, false));
-            }
-        }
+    // Test all the exponent differences at every scale, including subnormals
+    for (x, y) in values::binade_pairs(values::exp_pairs(0..=39, 1), 5000) {
+        f(x, y);
     }
 
-    for mx in 0..(1 << 10) {
-        for my in 0..(1 << 10) {
-            f(mk_subnormal(mx, false), mk_subnormal(my, false));
+    // Exhaustive test of all pairs of subnormal numbers
+    for x in values::subnormals_full() {
+        for y in values::subnormals_full() {
+            f(x, y);
         }
     }
 

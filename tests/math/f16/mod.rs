@@ -11,6 +11,7 @@ mod log;
 mod pow;
 mod sqrt;
 mod trigonometric;
+mod values;
 
 fn mk_normal(m: u16, e: i8, s: bool) -> swfp::F16 {
     assert!(m < (1 << 10));
@@ -152,8 +153,4 @@ fn check_exact(
     if let Some(actual_status) = actual_status {
         assert_eq!(actual_status, expected_status, "input = {input:?}");
     }
-}
-
-fn gen_mantissa(rng: &mut impl rand::RngExt) -> u16 {
-    rng.random::<u16>() >> (16 - 10)
 }

@@ -1,6 +1,6 @@
 use swfp::{F64, Float as _, math::InvHyperbolic as _};
 
-use super::{check_exact, mk_normal, mk_subnormal, to_rug};
+use super::{check_exact, to_rug, values};
 
 #[test]
 fn test_asinh() {
@@ -8,7 +8,11 @@ fn test_asinh() {
 
     test_asinh_with(|x| {
         let actual = x.asinh();
-        assert_total_eq!((-x).asinh(), -actual);
+        if actual.is_nan() {
+            assert_total_eq!((-x).asinh(), actual);
+        } else {
+            assert_total_eq!((-x).asinh(), -actual);
+        }
 
         let mut expected = to_rug(x);
         let round_cmp = expected.asinh_round(rug::float::Round::Nearest);
@@ -49,7 +53,11 @@ fn test_atanh() {
 
     test_atanh_with(|x| {
         let actual = x.atanh();
-        assert_total_eq!((-x).atanh(), -actual);
+        if actual.is_nan() {
+            assert_total_eq!((-x).atanh(), actual);
+        } else {
+            assert_total_eq!((-x).atanh(), -actual);
+        }
 
         let mut expected = to_rug(x);
         let round_cmp = expected.atanh_round(rug::float::Round::Nearest);
@@ -65,20 +73,19 @@ fn test_atanh() {
 }
 
 fn test_asinh_with(mut f: impl FnMut(F64)) {
-    let mut rng = crate::create_prng();
-
-    for e in -1022..=1023 {
-        for &m in super::NORMAL_MANTISSAS.iter() {
-            f(mk_normal(m, e, false));
-        }
-        for _ in 0..10_000 {
-            let m = super::gen_mantissa(&mut rng);
-            f(mk_normal(m, e, false));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
     }
 
-    for &m in super::SUBNORMAL_MANTISSAS.iter() {
-        f(mk_subnormal(m, false));
+    // Test across a wide range of normal numbers
+    for x in values::binades(-1022..=1023, 10_000) {
+        f(x);
+    }
+
+    // Test a set of subnormal values
+    for x in values::subnormals(10_000) {
+        f(x);
     }
 
     for x in 1..=200_000 {
@@ -95,16 +102,15 @@ fn test_asinh_with(mut f: impl FnMut(F64)) {
 }
 
 fn test_acosh_with(mut f: impl FnMut(F64)) {
-    let mut rng = crate::create_prng();
+    // Test special values
+    for x in values::specials() {
+        f(x);
+        f(-x);
+    }
 
-    for e in 0..=1023 {
-        for &m in super::NORMAL_MANTISSAS.iter() {
-            f(mk_normal(m, e, false));
-        }
-        for _ in 0..10_000 {
-            let m = super::gen_mantissa(&mut rng);
-            f(mk_normal(m, e, false));
-        }
+    // Test across a wide range of normal numbers above one
+    for x in values::binades(0..=1023, 10_000) {
+        f(x);
     }
 
     for x in 1..=200_000 {
@@ -121,20 +127,19 @@ fn test_acosh_with(mut f: impl FnMut(F64)) {
 }
 
 fn test_atanh_with(mut f: impl FnMut(F64)) {
-    let mut rng = crate::create_prng();
-
-    for e in -1022..=-1 {
-        for &m in super::NORMAL_MANTISSAS.iter() {
-            f(mk_normal(m, e, false));
-        }
-        for _ in 0..10_000 {
-            let m = super::gen_mantissa(&mut rng);
-            f(mk_normal(m, e, false));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
     }
 
-    for &m in super::SUBNORMAL_MANTISSAS.iter() {
-        f(mk_subnormal(m, false));
+    // Test across a wide range of normal numbers below one
+    for x in values::binades(-1022..=-1, 10_000) {
+        f(x);
+    }
+
+    // Test a set of subnormal values
+    for x in values::subnormals(10_000) {
+        f(x);
     }
 
     // Test data from core-math

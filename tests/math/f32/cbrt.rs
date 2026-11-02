@@ -1,6 +1,6 @@
 use swfp::{F32, Float as _, math::Cbrt as _};
 
-use super::{check_exact, mk_normal, mk_subnormal, to_rug};
+use super::{check_exact, to_rug, values};
 
 #[test]
 fn test_cbrt() {
@@ -8,7 +8,11 @@ fn test_cbrt() {
 
     test_with(|x| {
         let actual = x.cbrt();
-        assert_total_eq!((-x).cbrt(), -actual);
+        if actual.is_nan() {
+            assert_total_eq!((-x).cbrt(), actual);
+        } else {
+            assert_total_eq!((-x).cbrt(), -actual);
+        }
 
         let mut expected = to_rug(x);
         let round_cmp = expected.cbrt_round(rug::float::Round::Nearest);
@@ -24,27 +28,24 @@ fn test_cbrt() {
 }
 
 fn test_with(mut f: impl FnMut(F32)) {
-    let mut rng = crate::create_prng();
+    // Test special values
+    for x in values::specials() {
+        f(x);
+    }
 
     // Exhaustive test of all mantissas
-    for e in 0..=2 {
-        for m in 0..(1 << 23) {
-            f(mk_normal(m, e, false));
-        }
+    for x in values::binades_full(0..=2) {
+        f(x);
     }
 
     // Exhaustive test of all subnormal numbers
-    for m in 0..(1 << 23) {
-        f(mk_subnormal(m, false));
+    for x in values::subnormals_full() {
+        f(x);
     }
 
-    for e in -126..=127 {
-        f(mk_normal(0, e, false));
-        f(mk_normal((1 << 23) - 1, e, false));
-        for _ in 0..1000 {
-            let m = super::gen_mantissa(&mut rng);
-            f(mk_normal(m, e, false));
-        }
+    // Test across a wide range of normal numbers
+    for x in values::binades(-126..=127, 1000) {
+        f(x);
     }
 
     for x in 1..=500_000 {

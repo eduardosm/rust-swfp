@@ -1,6 +1,6 @@
-use swfp::{F16, math::Cbrt as _};
+use swfp::{F16, Float as _, math::Cbrt as _};
 
-use super::{check_exact, mk_normal, mk_subnormal, to_rug};
+use super::{check_exact, to_rug, values};
 
 #[test]
 fn test_cbrt() {
@@ -8,7 +8,11 @@ fn test_cbrt() {
 
     test_with(|x| {
         let actual = x.cbrt();
-        assert_total_eq!((-x).cbrt(), -actual);
+        if actual.is_nan() {
+            assert_total_eq!((-x).cbrt(), actual);
+        } else {
+            assert_total_eq!((-x).cbrt(), -actual);
+        }
 
         let mut expected = to_rug(x);
         let round_cmp = expected.cbrt_round(rug::float::Round::Nearest);
@@ -24,12 +28,18 @@ fn test_cbrt() {
 }
 
 fn test_with(mut f: impl FnMut(F16)) {
-    for e in -14..=15 {
-        for m in 0..(1 << 10) {
-            f(mk_normal(m, e, false));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
     }
-    for m in 0..(1 << 10) {
-        f(mk_subnormal(m, false));
+
+    // Exhaustive test of all normal numbers
+    for x in values::binades_full(-14..=15) {
+        f(x);
+    }
+
+    // Exhaustive test of all subnormal numbers
+    for x in values::subnormals_full() {
+        f(x);
     }
 }

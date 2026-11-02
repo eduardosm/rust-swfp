@@ -1,6 +1,6 @@
 use swfp::{F64, Float as _, math::Sqrt as _};
 
-use super::{check_exact, mk_normal, mk_subnormal, to_rug};
+use super::{check_exact, to_rug, values};
 
 #[test]
 fn test_sqrt() {
@@ -30,35 +30,40 @@ fn test_sqrt() {
 
         for &(swfp_round, rug_round) in round_modes.iter() {
             let (actual, status) = x.sqrt_ex(swfp_round);
-
-            let mut expected = to_rug(x);
-            let round_cmp = expected.sqrt_round(rug_round);
-            check_exact(x, actual, Some(status), expected, round_cmp, rug_round);
+            if x.is_nan() {
+                // `from_rug` assumes that NaN results come from invalid
+                // operations, but a NaN argument does not raise any exception
+                assert_total_eq!((actual, status), (F64::NAN, swfp::FpStatus::OK));
+            } else {
+                let mut expected = to_rug(x);
+                let round_cmp = expected.sqrt_round(rug_round);
+                check_exact(x, actual, Some(status), expected, round_cmp, rug_round);
+            }
         }
     });
 }
 
 fn test_with(mut f: impl FnMut(F64)) {
-    let mut rng = crate::create_prng();
-
-    for e in 0..=1 {
-        for _ in 0..2_000_000 {
-            let m = super::gen_mantissa(&mut rng);
-            f(mk_normal(m, e, false));
-        }
+    // Test special values
+    for x in values::specials().chain([-F64::ZERO]) {
+        f(x);
     }
 
-    for e in -1022..=1023 {
-        f(mk_normal(0, e, false));
-        f(mk_normal((1 << 52) - 1, e, false));
-        for _ in 0..2000 {
-            let m = super::gen_mantissa(&mut rng);
-            f(mk_normal(m, e, false));
-        }
+    // Test more values at two consecutive binades. The implementation only
+    // depends on the mantissa and on the parity of the exponent (the result
+    // is scaled exactly).
+    for x in values::binades(0..=1, 2_000_000) {
+        f(x);
     }
 
-    for &m in super::SUBNORMAL_MANTISSAS.iter() {
-        f(mk_subnormal(m, false));
+    // Test across a wide range of normal numbers
+    for x in values::binades(-1022..=1023, 2000) {
+        f(x);
+    }
+
+    // Test a set of subnormal values
+    for x in values::subnormals(1_000_000) {
+        f(x);
     }
 
     for x in 1..=500_000 {

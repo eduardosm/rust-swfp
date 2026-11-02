@@ -1,6 +1,6 @@
 use swfp::{F16, Float as _, math::Gamma as _};
 
-use super::{check_exact, mk_normal, mk_subnormal, to_rug};
+use super::{check_exact, to_rug, values};
 
 #[test]
 fn test_gamma() {
@@ -31,7 +31,11 @@ fn test_ln_gamma() {
 
         let mut expected = to_rug(x);
         let (ord, round_cmp) = expected.ln_abs_gamma_round(rug::float::Round::Nearest);
-        let expected_sign = if x < F16::ZERO && x.trunc() == x {
+        if x == -F16::INFINITY {
+            // The gamma function is not defined at -∞ (MPFR returns +∞)
+            expected = to_rug(F16::NAN);
+        }
+        let expected_sign = if x.is_nan() || (x < F16::ZERO && x.trunc() == x) {
             0
         } else {
             ord as i8
@@ -49,14 +53,21 @@ fn test_ln_gamma() {
 }
 
 fn test_with(mut f: impl FnMut(F16)) {
-    for e in -14..=15 {
-        for m in 0..(1 << 10) {
-            f(mk_normal(m, e, false));
-            f(mk_normal(m, e, true));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
+        f(-x);
     }
-    for m in 0..(1 << 10) {
-        f(mk_subnormal(m, false));
-        f(mk_subnormal(m, true));
+
+    // Exhaustive test of all normal numbers
+    for x in values::binades_full(-14..=15) {
+        f(x);
+        f(-x);
+    }
+
+    // Exhaustive test of all subnormal numbers
+    for x in values::subnormals_full() {
+        f(x);
+        f(-x);
     }
 }

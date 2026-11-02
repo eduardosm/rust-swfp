@@ -1,6 +1,6 @@
 use swfp::{F32, Float as _, math::Exp as _, math::Trigonometric as _};
 
-use super::{check_exact, mk_normal, mk_subnormal, to_rug};
+use super::{check_exact, to_rug, values};
 
 #[test]
 fn test_sin_cos() {
@@ -9,10 +9,15 @@ fn test_sin_cos() {
     test_with(|x| {
         let actual_sin = x.sin();
         let actual_cos = x.cos();
-        assert_total_eq!((-x).sin(), -actual_sin);
         assert_total_eq!((-x).cos(), actual_cos);
         assert_total_eq!(x.sin_cos(), (actual_sin, actual_cos));
-        assert_total_eq!((-x).sin_cos(), (-actual_sin, actual_cos));
+        if actual_sin.is_nan() {
+            assert_total_eq!((-x).sin(), actual_sin);
+            assert_total_eq!((-x).sin_cos(), (actual_sin, actual_cos));
+        } else {
+            assert_total_eq!((-x).sin(), -actual_sin);
+            assert_total_eq!((-x).sin_cos(), (-actual_sin, actual_cos));
+        }
 
         let mut expected_sin = to_rug(x);
         let round_cmp = expected_sin.sin_round(rug::float::Round::Nearest);
@@ -44,7 +49,11 @@ fn test_tan() {
 
     test_with(|x| {
         let actual = x.tan();
-        assert_total_eq!((-x).tan(), -actual);
+        if actual.is_nan() {
+            assert_total_eq!((-x).tan(), actual);
+        } else {
+            assert_total_eq!((-x).tan(), -actual);
+        }
 
         let mut expected = to_rug(x);
         let round_cmp = expected.tan_round(rug::float::Round::Nearest);
@@ -66,10 +75,15 @@ fn test_sind_cosd() {
     test_with(|x| {
         let actual_sin = x.sind();
         let actual_cos = x.cosd();
-        assert_total_eq!((-x).sind(), -actual_sin);
         assert_total_eq!((-x).cosd(), actual_cos);
         assert_total_eq!(x.sind_cosd(), (actual_sin, actual_cos));
-        assert_total_eq!((-x).sind_cosd(), (-actual_sin, actual_cos));
+        if actual_sin.is_nan() {
+            assert_total_eq!((-x).sind(), actual_sin);
+            assert_total_eq!((-x).sind_cosd(), (actual_sin, actual_cos));
+        } else {
+            assert_total_eq!((-x).sind(), -actual_sin);
+            assert_total_eq!((-x).sind_cosd(), (-actual_sin, actual_cos));
+        }
 
         let mut expected_sin = to_rug(x);
         let round_cmp = expected_sin.sin_u_round(360, rug::float::Round::Nearest);
@@ -101,7 +115,11 @@ fn test_tand() {
 
     test_with(|x| {
         let actual = x.tand();
-        assert_total_eq!((-x).tand(), -actual);
+        if actual.is_nan() {
+            assert_total_eq!((-x).tand(), actual);
+        } else {
+            assert_total_eq!((-x).tand(), -actual);
+        }
 
         let mut expected = to_rug(x);
         let round_cmp = expected.tan_u_round(360, rug::float::Round::Nearest);
@@ -123,10 +141,15 @@ fn test_sinpi_cospi() {
     test_with(|x| {
         let actual_sin = x.sinpi();
         let actual_cos = x.cospi();
-        assert_total_eq!((-x).sinpi(), -actual_sin);
         assert_total_eq!((-x).cospi(), actual_cos);
         assert_total_eq!(x.sinpi_cospi(), (actual_sin, actual_cos));
-        assert_total_eq!((-x).sinpi_cospi(), (-actual_sin, actual_cos));
+        if actual_sin.is_nan() {
+            assert_total_eq!((-x).sinpi(), actual_sin);
+            assert_total_eq!((-x).sinpi_cospi(), (actual_sin, actual_cos));
+        } else {
+            assert_total_eq!((-x).sinpi(), -actual_sin);
+            assert_total_eq!((-x).sinpi_cospi(), (-actual_sin, actual_cos));
+        }
 
         let mut expected_sin = to_rug(x);
         let round_cmp = expected_sin.sin_pi_round(rug::float::Round::Nearest);
@@ -158,7 +181,11 @@ fn test_tanpi() {
 
     test_with(|x| {
         let actual = x.tanpi();
-        assert_total_eq!((-x).tanpi(), -actual);
+        if actual.is_nan() {
+            assert_total_eq!((-x).tanpi(), actual);
+        } else {
+            assert_total_eq!((-x).tanpi(), -actual);
+        }
 
         let mut expected = to_rug(x);
         let round_cmp = expected.tan_pi_round(rug::float::Round::Nearest);
@@ -174,20 +201,19 @@ fn test_tanpi() {
 }
 
 fn test_with(mut f: impl FnMut(F32)) {
-    let mut rng = crate::create_prng();
-
-    for e in -126..=127 {
-        for &m in super::NORMAL_MANTISSAS.iter() {
-            f(mk_normal(m, e, false));
-        }
-        for _ in 0..5000 {
-            let m = super::gen_mantissa(&mut rng);
-            f(mk_normal(m, e, false));
-        }
+    // Test special values
+    for x in values::specials() {
+        f(x);
     }
 
-    for m in 0..(1 << 23) {
-        f(mk_subnormal(m, false));
+    // Test across a wide range of normal numbers
+    for x in values::binades(-126..=127, 5000) {
+        f(x);
+    }
+
+    // Exhaustive test of all subnormal numbers
+    for x in values::subnormals_full() {
+        f(x);
     }
 
     for x in 1..=200_000 {
