@@ -1,212 +1,110 @@
-// 2 / π ~= sum(FRAC_2_PI_LARGE[i] * 2^(-24 * (i + 1)))
-// GENERATE: reduce_pi_2::frac_2_pi_large
-const FRAC_2_PI_LARGE: &[u32] = &[
-    0xA2F983, 0x6E4E44, 0x1529FC, 0x2757D1, 0xF534DD, 0xC0DB62, 0x95993C, 0x439041, 0xFE5163,
-    0xABDEBB, 0xC561B7, 0x246E3A, 0x424DD2, 0xE00649, 0x2EEA09, 0xD1921C, 0xFE1DEB, 0x1CB129,
-    0xA73EE8, 0x8235F5, 0x2EBB44, 0x84E99C, 0x7026B4, 0x5F7E41, 0x3991D6, 0x398353, 0x39F49C,
-    0x845F8B, 0xBDF928, 0x3B1FF8, 0x97FFDE, 0x05980F, 0xEF2F11, 0x8B5A0A, 0x6D1F6D, 0x367ECF,
-    0x27CB09, 0xB74F46, 0x3F669E, 0x5FEA2D, 0x7527BA, 0xC7EBE5, 0xF17B3D, 0x0739F7, 0x8A5292,
-    0xEA6BFB, 0x5FB11F, 0x8D5D08, 0x560330, 0x46FC7B, 0x6BABF0, 0xCFBC20, 0x9AF436, 0x1DA9E3,
-    0x91615E, 0xE61B08, 0x659985, 0x5F14A0, 0x68408D, 0xFFD880, 0x4D7327, 0x310606, 0x1556CA,
-    0x73A8C9, 0x60E27B, 0xC08C6B,
-];
+use crate::simple_fp::{Sfp, SfpM128E16};
+use crate::traits::{CastInto, UInt};
 
-// π / 2 ~= sum(FRAC_PI_2_MEDIUM[i] * 2^(1 - 24 * (i + 1)))
-// GENERATE: reduce_pi_2::frac_pi_2_medium
-const FRAC_PI_2_MEDIUM: &[u32] = &[
-    0xC90FDA, 0xA22168, 0xC234C4, 0xC6628B, 0x80DC1C, 0xD12902, 0x4E088A, 0x67CC74,
-];
-
-// Based on __rem_pio2_large from musl libc, which has been
-// translated from C to Rust (trying to be idiomatic). Floating
-// point arithmetic has been replaced with integer or fixed
-// point arithmetic.
-
-// ORIGINAL COPYRIGHT NOTICE
-//
-// origin: FreeBSD /usr/src/lib/msun/src/k_rem_pio2.c
-//
-// ====================================================
-// Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
-//
-// Developed at SunSoft, a Sun Microsystems, Inc. business.
-// Permission to use, copy, modify, and distribute this
-// software is freely granted, provided that this notice
-// is preserved.
-// ====================================================
-
-/// Common part of π/2 reduction
+/// Reduces a large angle argument `x` (in radians) with integer arithmetic
+/// (Payne-Hanek), returning `(n, y)` such that:
+/// * `|y| <= π/4`
+/// * `0 <= n <= 3`
+/// * `|x| = 2*π*M + π/2*n + y`
+/// * `M` is an integer
 ///
-/// Inputs:
-/// * `x` is the input splitted in 24-bit chunks
-/// * `e0` is the exponent of `x[0]` (`x[0]*2^e0` is the input truncated to 24
-///   bits).
-/// * `jk + 1` is the initial number of needed terms of `FRAC_2_PI_LARGE`, which
-///   is 4 for `f32` and 5 for `f64`.
+/// The input is `|x| = m * 2^e`, with `m < 2^53` and `e >= 2`.
 ///
-/// Returns `(ih, jz, n, qe)`.
-pub(crate) fn reduce_pi_2_large(
-    x: &[u32],
-    e0: i16,
-    jk: usize,
-    qp: &mut [u64; 20],
-) -> (u32, usize, u8, i16) {
-    assert!(e0 >= -24);
+/// `|x| * 2/π` is calculated modulo 4 with an absolute error less than
+/// 2^-201. Since its distance to the nearest integer is at least ~2^-61.5 for
+/// all finite `f64`, the fraction has a relative error less than 2^-139. Its
+/// highest 128 bits are multiplied by π/2, and the result is truncated to
+/// `M::BITS` bits.
+pub(crate) fn reduce_pi_2_large<M: UInt>(m: u64, e: i16) -> (u8, Sfp<M, i16>)
+where
+    u128: CastInto<M>,
+{
+    // GENERATE: consts SfpM128E16 FRAC_PI_2
+    const FRAC_PI_2: SfpM128E16 = Sfp::newp(0, 0xC90FDAA22168C234C4C6628B80DC1CD1); // 1.5707963267948966192313216916397514421e0
 
-    // jp + 1 is the number of needed terms of FRAC_PI_2_MEDIUM,
-    // which is equal to jk + 1.
-    let jp = jk;
+    // 2 / π ~= sum(FRAC_2_PI_BITS[i] * 2^(-64 * (i + 1)))
+    // GENERATE: reduce_pi_2::frac_2_pi_bits
+    static FRAC_2_PI_BITS: [u64; 20] = [
+        0xA2F9836E4E441529,
+        0xFC2757D1F534DDC0,
+        0xDB6295993C439041,
+        0xFE5163ABDEBBC561,
+        0xB7246E3A424DD2E0,
+        0x06492EEA09D1921C,
+        0xFE1DEB1CB129A73E,
+        0xE88235F52EBB4484,
+        0xE99C7026B45F7E41,
+        0x3991D639835339F4,
+        0x9C845F8BBDF9283B,
+        0x1FF897FFDE05980F,
+        0xEF2F118B5A0A6D1F,
+        0x6D367ECF27CB09B7,
+        0x4F463F669E5FEA2D,
+        0x7527BAC7EBE5F17B,
+        0x3D0739F78A5292EA,
+        0x6BFB5FB11F8D5D08,
+        0x56033046FC7B6BAB,
+        0xF0CFBC209AF4361D,
+    ];
 
-    // jv is the index pointing to the position of FRAC_2_PI_LARGE
-    // needed to calculate q.
-    let jv = ((e0 - 3) / 24).max(0);
-    // Exponent of q[0], such as the exponent of q[i] is q0 - 24 * i.
-    // Note that q0 < 3
-    let mut q0 = e0 - 24 * (jv + 1);
-    debug_assert!(matches!(q0, -48..=2));
-    let jv = jv as usize;
+    debug_assert!(m < (1 << 53));
+    debug_assert!(e >= 2);
 
-    // Calculate q[0..=jk] (array of chunks representing the product
-    // of x and 2/π)
-    let mut q: [u64; 20] = [0; 20];
-    for i in 0..=jk {
-        let mut fw = 0;
-        for j in 0..x.len().min(jv + i + 1) {
-            fw += u64::from(x[j]) * u64::from(FRAC_2_PI_LARGE[jv + i - j]);
-        }
-        q[i] = fw;
+    // With `2/π = sum(b[i] * 2^-i)` (`i >= 1`), the terms of
+    // `|x| * 2/π = sum(m * b[i] * 2^(e - i))` with `i < e - 1` are multiples
+    // of 4, so they can be discarded. `G = sum(b[i] * 2^(e - i))` (`i >= e - 1`)
+    // is taken from the bits of `FRAC_2_PI_BITS` starting at `b[e - 1]`, which
+    // is bit `e - 2` (counting from 0, starting at the most significant bit of
+    // the first word).
+    let pos = (e - 2) as usize;
+    let (w, s) = (pos / 64, pos % 64);
+    let window = |i: usize| -> u64 {
+        let pair = (u128::from(FRAC_2_PI_BITS[i]) << 64) | u128::from(FRAC_2_PI_BITS[i + 1]);
+        ((pair << s) >> 64) as u64
+    };
+
+    // q = m * G, with 256 bits of G, so the truncation error is less than
+    // 2^53 * 2^-254 = 2^-201. Only the lowest 256 bits of the result are
+    // needed: bits 254..256 are the integer part (modulo 4) of `|x| * 2/π`,
+    // and bits 0..254 the fraction.
+    let mut q = [0u64; 4];
+    let mut carry = 0;
+    for (i, q_i) in q.iter_mut().enumerate().rev() {
+        let t = u128::from(m) * u128::from(window(w + i)) + carry;
+        *q_i = t as u64;
+        carry = t >> 64;
     }
 
-    // jz + 1 is the number of used terms of FRAC_2_PI_LARGE.
-    let mut jz = jk;
-    // q splitted in 24-bit chunks
-    let mut iq: [u32; 20] = [0; 20];
-    let mut z: u64;
-    let mut n: u32;
-    // if ih > 0, q >= 0.5
-    let mut ih: u32;
+    let mut n = (q[0] >> 62) as u8;
+    // fraction = (hi * 2^128 + lo) * 2^-254
+    let mut hi = ((u128::from(q[0]) << 64) | u128::from(q[1])) & (u128::MAX >> 2);
+    let mut lo = (u128::from(q[2]) << 64) | u128::from(q[3]);
 
-    loop {
-        // Distill q[] into iq[] reversingly
-        z = q[jz];
-        for (iq_i, q_i) in iq[..jz].iter_mut().zip(q[..jz].iter().rev()) {
-            *iq_i = (z & 0x00FF_FFFF) as u32;
-            z = *q_i + (z >> 24);
-        }
-
-        // Calculate n and remove integer part from z
-        if q0 >= 0 {
-            n = ((z << q0) % 8) as u32;
-            z = 0;
-        } else {
-            // q0 >= -48 && q0 < 0
-            n = ((z >> -q0) % 8) as u32;
-            z &= !(u64::MAX << (-q0));
-        }
-
-        ih = 0;
-        if q0 > 0 {
-            // Need iq[jz-1] to determine n
-            n += iq[jz - 1] >> (24 - q0);
-            iq[jz - 1] &= (1 << (24 - q0)) - 1;
-            ih = iq[jz - 1] >> (23 - q0);
-            debug_assert!(ih <= 1);
-        } else if q0 == 0 {
-            ih = iq[jz - 1] >> 23;
-            debug_assert!(ih <= 1);
-        } else if z >= (1 << -(q0 + 1)) {
-            // q0 >= -48 && q0 < 0
-            // z >= 0.5
-            ih = 2;
-        }
-
-        if ih > 0 {
-            // q > 0.5
-            n += 1;
-            let mut carry = false;
-            for iq_i in iq[0..jz].iter_mut() {
-                // Compute 1-q
-                let j = *iq_i;
-                if !carry {
-                    if j != 0 {
-                        carry = true;
-                        *iq_i = 0x0100_0000 - j;
-                    }
-                } else {
-                    *iq_i = 0x00FF_FFFF - j;
-                }
-            }
-            match q0 {
-                // Rare case: chance is 1 in 12
-                1 => iq[jz - 1] &= 0x007F_FFFF,
-                2 => iq[jz - 1] &= 0x003F_FFFF,
-                _ => {}
-            }
-            if ih == 2 {
-                debug_assert!(q0 < 0);
-                z = (1 << -q0) - z;
-                if carry {
-                    z -= 1;
-                }
-            }
-        }
-
-        // Check if recomputation is needed
-        if z == 0 {
-            let mut j = 0;
-            for i in (jk..jz).rev() {
-                j |= iq[i];
-            }
-            if j == 0 {
-                // Recomputation needed
-                // k is the number of needed terms
-                let k = iq[..jk].iter().rev().take_while(|&&iq_i| iq_i == 0).count() + 1;
-
-                for i in (jz + 1)..=(jz + k) {
-                    // Add q[jz+1] to q[jz+k]
-                    let mut fw = 0;
-                    for j in 0..x.len() {
-                        fw += u64::from(x[j]) * u64::from(FRAC_2_PI_LARGE[jv + i - j]);
-                    }
-                    q[i] = fw;
-                }
-                jz += k;
-                continue;
-            }
-        }
-
-        break;
+    let neg = (hi >> 125) != 0;
+    if neg {
+        // Round to nearest, the fraction becomes negative (fraction - 1)
+        n = n.wrapping_add(1);
+        let borrow;
+        (lo, borrow) = 0u128.overflowing_sub(lo);
+        hi = 0u128.wrapping_sub(hi).wrapping_sub(u128::from(borrow)) & (u128::MAX >> 2);
     }
 
-    // Chop off zero terms
-    if z == 0 {
-        jz -= 1;
-        q0 -= 24;
-        while iq[jz] == 0 {
-            jz -= 1;
-            q0 -= 24;
-        }
+    // Normalize (lz >= 2), keeping the highest 128 bits.
+    let (top, lz) = if hi != 0 {
+        let lz = hi.leading_zeros();
+        ((hi << lz) | (lo >> (128 - lz)), lz)
+    } else if lo != 0 {
+        let lz = lo.leading_zeros();
+        (lo << lz, 128 + lz)
     } else {
-        // Break z into 24-bit if necessary
-        if z >= 0x0100_0000 {
-            iq[jz] = (z & 0x00FF_FFFF) as u32;
-            jz += 1;
-            q0 += 24;
-            iq[jz] = (z >> 24) as u32;
-        } else {
-            iq[jz] = z as u32;
-        }
-    }
+        return (n & 3, Sfp::ZERO);
+    };
 
-    // Compute FRAC_PI_2_MEDIUM[0..=jp] * q[jz..=0]
-    let qe = q0 - 23;
-    for i in (0..=jz).rev() {
-        let mut acc = 0;
-        for k in 0..=jp.min(jz - i) {
-            acc += u64::from(FRAC_PI_2_MEDIUM[k]) * u64::from(iq[i + k]);
-        }
-        qp[jz - i] = acc;
-    }
+    // |fraction| ~= top * 2^(128 - lz) * 2^-254 and
+    // π/2 ~= FRAC_PI_2.mant() * 2^-127, so
+    // |y| = |fraction| * π/2 ~= p * 2^128 * 2^(-126 - lz) * 2^-127
+    let (_, p) = top.wide_mul(FRAC_PI_2.mant());
+    let y = Sfp::from_int(p).scalbn(-125 - lz as i16).set_sign(neg);
 
-    (ih, jz, n as u8, qe)
+    (n & 3, y)
 }
