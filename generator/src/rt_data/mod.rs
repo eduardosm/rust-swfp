@@ -174,8 +174,7 @@ fn generate(param: &str) -> Result<String, RunError> {
         "consts" => consts::gen_consts(&args),
 
         "reduce_pi_2::medium_consts" => reduce_pi_2::gen_medium_consts(&args),
-        "reduce_pi_2::frac_2_pi_large" => reduce_pi_2::gen_frac_2_pi_large(&args),
-        "reduce_pi_2::frac_pi_2_medium" => reduce_pi_2::gen_frac_pi_2_medium(&args),
+        "reduce_pi_2::frac_2_pi_bits" => reduce_pi_2::gen_frac_2_pi_bits(&args),
 
         "pow5_table" => pow5::gen_pow5_table(&args),
 

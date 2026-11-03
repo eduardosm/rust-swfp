@@ -178,26 +178,12 @@ fn reduce_pi_2(x: F32) -> (u8, SfpM64E16) {
 
         (n as u8 & 3, y)
     } else {
-        let mant = x_orig.mant();
-        let x_chunks = [mant];
-        let e0 = x_orig.exponent() - 23;
-        let jk = 4;
-
-        let mut qp: [u64; 20] = [0; 20];
-        let (ih, jz, n, qe) = reduce_pi_2_large(x_chunks.as_ref(), e0, jk, &mut qp);
-
-        // compress qp into fw
-        let mut fw = SfpM64E16::ZERO;
-        for &qp_i in qp[..=jz].iter().rev() {
-            fw = fw.scalbn(-24) + SfpM64E16::from_int(qp_i);
-        }
-
-        let y = fw.scalbn(qe).set_sign(ih != 0);
+        let (n, y) = reduce_pi_2_large(x_orig.mant().into(), x_orig.exponent() - 23);
 
         if x.sign() {
             (n.wrapping_neg() & 3, -y)
         } else {
-            (n & 3, y)
+            (n, y)
         }
     }
 }
