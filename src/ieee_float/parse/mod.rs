@@ -224,12 +224,13 @@ mod tests {
     use crate::utils::RoundLoss;
     use crate::{FpStatus, Round};
 
-    pub(super) const ALL_ROUND_MODES: [Round; 5] = [
+    pub(super) const ALL_ROUND_MODES: [Round; 6] = [
         Round::NearestTiesToEven,
         Round::NearestTiesToAway,
         Round::TowardPositive,
         Round::TowardNegative,
         Round::TowardZero,
+        Round::AwayFromZero,
     ];
 
     pub(super) fn create_prng() -> impl rand::Rng {

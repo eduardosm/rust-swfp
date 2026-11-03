@@ -90,6 +90,7 @@ fn from_rug(
                 rug::float::Round::Up => value.is_sign_positive(),
                 rug::float::Round::Down => value.is_sign_negative(),
                 rug::float::Round::Zero => false,
+                rug::float::Round::AwayZero => true,
                 _ => unreachable!(),
             };
             let res = if inf {

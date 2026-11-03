@@ -86,16 +86,9 @@ fn test_compare() {
 
 #[test]
 fn test_convert_to_self() {
-    let round_modes = [
-        Round::NearestTiesToEven,
-        Round::NearestTiesToAway,
-        Round::TowardPositive,
-        Round::TowardNegative,
-        Round::TowardZero,
-    ];
     for bits in u16::MIN..=u16::MAX {
         let value = swfp::F16::from_bits(bits);
-        for round in round_modes {
+        for round in ALL_ROUND_MODES {
             let (new_value, status) = swfp::F16::convert_from_ex(value, round);
             let new_bits = new_value.to_bits();
 

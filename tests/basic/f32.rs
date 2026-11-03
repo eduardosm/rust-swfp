@@ -1638,6 +1638,7 @@ fn test_mul() {
         (Round::NearestTiesToEven, min_normal, FpStatus::INEXACT),
         (Round::NearestTiesToAway, min_normal, FpStatus::INEXACT),
         (Round::TowardPositive, min_normal, FpStatus::INEXACT),
+        (Round::AwayFromZero, min_normal, FpStatus::INEXACT),
         (
             Round::TowardNegative,
             max_subnormal,
