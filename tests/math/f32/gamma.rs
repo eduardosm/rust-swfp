@@ -6,7 +6,7 @@ use super::{check_exact, to_rug, values};
 fn test_gamma() {
     crate::generic::test_gamma_special::<F32>();
 
-    test_with(|x| {
+    test_with(Func::Gamma, |x| {
         let actual = x.gamma();
 
         let mut expected = to_rug(x);
@@ -26,7 +26,7 @@ fn test_gamma() {
 fn test_ln_gamma() {
     crate::generic::test_ln_gamma_special::<F32>();
 
-    test_with(|x| {
+    test_with(Func::LnGamma, |x| {
         let (actual, actual_sign) = x.ln_gamma();
 
         let mut expected = to_rug(x);
@@ -52,7 +52,14 @@ fn test_ln_gamma() {
     });
 }
 
-fn test_with(mut f: impl FnMut(F32)) {
+/// A function of the gamma family.
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum Func {
+    Gamma,
+    LnGamma,
+}
+
+fn test_with(func: Func, mut f: impl FnMut(F32)) {
     // Test special values
     for x in values::specials() {
         f(x);
@@ -78,11 +85,20 @@ fn test_with(mut f: impl FnMut(F32)) {
         f(-x);
     }
 
-    // Generated test data
-    for x in crate::data::read_data_file::<F32>("f32/gamma.txt") {
-        f(x);
+    // Test the arguments around the negative integers (poles), whose results
+    // are large or overflow
+    for n in 1..=50 {
+        for x in values::around(F32::from_int(-n), 10_000) {
+            f(x);
+        }
     }
-    for x in crate::data::read_data_file::<F32>("f32/ln_gamma.txt") {
+
+    // Generated test data
+    let data_file = match func {
+        Func::Gamma => "f32/gamma.txt",
+        Func::LnGamma => "f32/ln_gamma.txt",
+    };
+    for x in crate::data::read_data_file::<F32>(data_file) {
         f(x);
     }
 }

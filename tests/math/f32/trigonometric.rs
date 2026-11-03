@@ -6,7 +6,7 @@ use super::{check_exact, to_rug, values};
 fn test_sin_cos() {
     crate::generic::test_sin_cos_special::<F32>();
 
-    test_with(|x| {
+    test_with(Unit::Radians, |x| {
         let actual_sin = x.sin();
         let actual_cos = x.cos();
         assert_total_eq!((-x).cos(), actual_cos);
@@ -47,7 +47,7 @@ fn test_sin_cos() {
 fn test_tan() {
     crate::generic::test_tan_special::<F32>();
 
-    test_with(|x| {
+    test_with(Unit::Radians, |x| {
         let actual = x.tan();
         if actual.is_nan() {
             assert_total_eq!((-x).tan(), actual);
@@ -72,7 +72,7 @@ fn test_tan() {
 fn test_sind_cosd() {
     crate::generic::test_sind_cosd_special::<F32>();
 
-    test_with(|x| {
+    test_with(Unit::Degrees, |x| {
         let actual_sin = x.sind();
         let actual_cos = x.cosd();
         assert_total_eq!((-x).cosd(), actual_cos);
@@ -113,7 +113,7 @@ fn test_sind_cosd() {
 fn test_tand() {
     crate::generic::test_tand_special::<F32>();
 
-    test_with(|x| {
+    test_with(Unit::Degrees, |x| {
         let actual = x.tand();
         if actual.is_nan() {
             assert_total_eq!((-x).tand(), actual);
@@ -138,7 +138,7 @@ fn test_tand() {
 fn test_sinpi_cospi() {
     crate::generic::test_sinpi_cospi_special::<F32>();
 
-    test_with(|x| {
+    test_with(Unit::HalfRevs, |x| {
         let actual_sin = x.sinpi();
         let actual_cos = x.cospi();
         assert_total_eq!((-x).cospi(), actual_cos);
@@ -179,7 +179,7 @@ fn test_sinpi_cospi() {
 fn test_tanpi() {
     crate::generic::test_tanpi_special::<F32>();
 
-    test_with(|x| {
+    test_with(Unit::HalfRevs, |x| {
         let actual = x.tanpi();
         if actual.is_nan() {
             assert_total_eq!((-x).tanpi(), actual);
@@ -200,7 +200,15 @@ fn test_tanpi() {
     });
 }
 
-fn test_with(mut f: impl FnMut(F32)) {
+/// Angle unit of the trigonometric functions.
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum Unit {
+    Radians,
+    Degrees,
+    HalfRevs,
+}
+
+fn test_with(unit: Unit, mut f: impl FnMut(F32)) {
     // Test special values
     for x in values::specials() {
         f(x);
@@ -224,52 +232,42 @@ fn test_with(mut f: impl FnMut(F32)) {
     // "ARGUMENT REDUCTION FOR HUGE ARGUMENTS: Good to the Last Bit"
     f(F32::from_host(1.0e22));
 
+    // Test the multiples of an eighth of a half revolution (π/8 radians, 22.5
+    // degrees or 1/8 half revolution) at several scales, and the arguments
+    // slightly away from them
     let one = F32::from_uint(1);
-    let frac_pi_8 = F32::from_host(std::f32::consts::FRAC_PI_8);
+    let step = match unit {
+        Unit::Radians => F32::from_host(std::f32::consts::FRAC_PI_8),
+        Unit::Degrees => F32::from_host(22.5),
+        Unit::HalfRevs => F32::from_host(0.125),
+    };
     for f1 in 1..=100 {
         let f1 = F32::from_uint(f1);
         for f2 in 0..=20 {
             let f2 = F32::from_uint(1 << f2);
 
-            f(frac_pi_8 * f1 * f2);
+            f(step * f1 * f2);
             for f3 in 1..=20 {
                 let f3 = F32::from_int(-f3);
-                f(frac_pi_8 * f1 * f2 * (one + f3.exp()));
-                f(frac_pi_8 * f1 * f2 * (one - f3.exp()));
-                f(frac_pi_8 * f1 * f2 * (one + f3.exp2()));
-                f(frac_pi_8 * f1 * f2 * (one - f3.exp2()));
-                f(frac_pi_8 * f1 * f2 * (one + f3.exp10()));
-                f(frac_pi_8 * f1 * f2 * (one - f3.exp10()));
+                f(step * f1 * f2 * (one + f3.exp()));
+                f(step * f1 * f2 * (one - f3.exp()));
+                f(step * f1 * f2 * (one + f3.exp2()));
+                f(step * f1 * f2 * (one - f3.exp2()));
+                f(step * f1 * f2 * (one + f3.exp10()));
+                f(step * f1 * f2 * (one - f3.exp10()));
             }
         }
     }
 
     // Generated test data
-    for x in crate::data::read_data_file::<F32>("f32/sin.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/cos.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/tan.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/sind.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/cosd.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/tand.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/sinpi.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/cospi.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/tanpi.txt") {
-        f(x);
+    let data_files = match unit {
+        Unit::Radians => ["f32/sin.txt", "f32/cos.txt", "f32/tan.txt"],
+        Unit::Degrees => ["f32/sind.txt", "f32/cosd.txt", "f32/tand.txt"],
+        Unit::HalfRevs => ["f32/sinpi.txt", "f32/cospi.txt", "f32/tanpi.txt"],
+    };
+    for data_file in data_files {
+        for x in crate::data::read_data_file::<F32>(data_file) {
+            f(x);
+        }
     }
 }

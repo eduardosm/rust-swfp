@@ -120,6 +120,33 @@ fn spread2(n: u32, seed: u64) -> impl Iterator<Item = (u32, u32)> {
     crate::utils::spread2(MANT_BITS, n, seed).map(|(a, b)| (a as u32, b as u32))
 }
 
+/// Returns an iterator over `x` and the `n` values before and after it.
+pub(super) fn around(x: F32, n: u32) -> impl Iterator<Item = F32> {
+    let max = ordinal(F32::INFINITY);
+    let ord = ordinal(x);
+    let n = i32::try_from(n).unwrap();
+    (ord.saturating_sub(n)..=ord.saturating_add(n))
+        .filter(move |o| o.abs() <= max)
+        .map(from_ordinal)
+}
+
+/// Position of `x` in the ordered sequence of values (`+0` and `-0` are
+/// both mapped to zero).
+fn ordinal(x: F32) -> i32 {
+    let bits = x.to_bits();
+    let mag = (bits & !0x8000_0000) as i32;
+    if (bits & 0x8000_0000) != 0 { -mag } else { mag }
+}
+
+/// Inverse of [`ordinal`] (zero is mapped to `+0`).
+fn from_ordinal(ord: i32) -> F32 {
+    if ord < 0 {
+        F32::from_bits(ord.unsigned_abs() | 0x8000_0000)
+    } else {
+        F32::from_bits(ord as u32)
+    }
+}
+
 /// Returns an iterator over the exponent pairs `(e1, e2)` with `e1 - e2 = d`
 /// for each `d` in `diffs`, where both are exponents of positive finite values
 /// (from -149 to 127, see [`binade_pairs`]).
@@ -258,4 +285,40 @@ fn test_binade_pairs() {
                 .all(|&(x, y)| in_binade(x, ex) && in_binade(y, ey))
         );
     }
+}
+
+#[test]
+fn test_around() {
+    let collect = |x: f32, n: u32| {
+        around(F32::from_host(x), n)
+            .map(F32::to_host)
+            .collect::<Vec<f32>>()
+    };
+    let one_below = 1.0 - f32::EPSILON / 2.0;
+    assert_eq!(
+        collect(1.0, 2),
+        [
+            one_below - f32::EPSILON / 2.0,
+            one_below,
+            1.0,
+            1.0 + f32::EPSILON,
+            1.0 + 2.0 * f32::EPSILON
+        ],
+    );
+    // Across zero (only one zero)
+    let min_sub = mk_subnormal(1, false).to_host();
+    assert_eq!(collect(0.0, 1), [-min_sub, 0.0, min_sub]);
+    assert_eq!(collect(-0.0, 1), [-min_sub, 0.0, min_sub]);
+    assert!(collect(-0.0, 1)[1].is_sign_positive());
+    // Not beyond infinity
+    let below_max = f32::from_bits(f32::MAX.to_bits() - 1);
+    let below_below_max = f32::from_bits(f32::MAX.to_bits() - 2);
+    assert_eq!(
+        collect(f32::MAX, 2),
+        [below_below_max, below_max, f32::MAX, f32::INFINITY]
+    );
+    assert_eq!(
+        collect(f32::NEG_INFINITY, 1),
+        [f32::NEG_INFINITY, -f32::MAX]
+    );
 }

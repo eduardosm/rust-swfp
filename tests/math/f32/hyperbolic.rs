@@ -6,7 +6,7 @@ use super::{check_exact, to_rug, values};
 fn test_sinh_cosh() {
     crate::generic::test_sinh_cosh_special::<F32>();
 
-    test_with(|x| {
+    test_with(Func::SinhCosh, |x| {
         let actual_sinh = x.sinh();
         let actual_cosh = x.cosh();
         assert_total_eq!((-x).cosh(), actual_cosh);
@@ -47,7 +47,7 @@ fn test_sinh_cosh() {
 fn test_tanh() {
     crate::generic::test_tanh_special::<F32>();
 
-    test_with(|x| {
+    test_with(Func::Tanh, |x| {
         let actual = x.tanh();
         if actual.is_nan() {
             assert_total_eq!((-x).tanh(), actual);
@@ -68,7 +68,14 @@ fn test_tanh() {
     });
 }
 
-fn test_with(mut f: impl FnMut(F32)) {
+/// A function of the hyperbolic family.
+#[derive(Copy, Clone)]
+enum Func {
+    SinhCosh,
+    Tanh,
+}
+
+fn test_with(func: Func, mut f: impl FnMut(F32)) {
     // Test special values
     for x in values::specials() {
         f(x);
@@ -89,13 +96,13 @@ fn test_with(mut f: impl FnMut(F32)) {
     }
 
     // Generated test data
-    for x in crate::data::read_data_file::<F32>("f32/sinh.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/cosh.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/tanh.txt") {
-        f(x);
+    let data_files: &[&str] = match func {
+        Func::SinhCosh => &["f32/sinh.txt", "f32/cosh.txt"],
+        Func::Tanh => &["f32/tanh.txt"],
+    };
+    for data_file in data_files {
+        for x in crate::data::read_data_file::<F32>(data_file) {
+            f(x);
+        }
     }
 }

@@ -6,7 +6,7 @@ use super::{check_exact, to_rug, values};
 fn test_asin() {
     crate::generic::test_asin_special::<F32>();
 
-    test_asin_with(|x| {
+    test_asin_with(Unit::Radians, |x| {
         let actual = x.asin();
         if actual.is_nan() {
             assert_total_eq!((-x).asin(), actual);
@@ -31,7 +31,7 @@ fn test_asin() {
 fn test_acos() {
     crate::generic::test_acos_special::<F32>();
 
-    test_acos_with(|x| {
+    test_acos_with(Unit::Radians, |x| {
         let actual = x.acos();
 
         let mut expected = to_rug(x);
@@ -51,7 +51,7 @@ fn test_acos() {
 fn test_atan() {
     crate::generic::test_atan_special::<F32>();
 
-    test_atan_with(|x| {
+    test_atan_with(Unit::Radians, |x| {
         let actual = x.atan();
         if actual.is_nan() {
             assert_total_eq!((-x).atan(), actual);
@@ -76,7 +76,7 @@ fn test_atan() {
 fn test_atan2() {
     crate::generic::test_atan2_special::<F32>();
 
-    test_atan2_with(|y, x| {
+    test_atan2_with(Unit::Radians, |y, x| {
         let actual = y.atan2(x);
         assert_total_eq!((-y).atan2(x), -actual);
 
@@ -97,7 +97,7 @@ fn test_atan2() {
 fn test_asind() {
     crate::generic::test_asind_special::<F32>();
 
-    test_asin_with(|x| {
+    test_asin_with(Unit::Degrees, |x| {
         let actual = x.asind();
         if actual.is_nan() {
             assert_total_eq!((-x).asind(), actual);
@@ -122,7 +122,7 @@ fn test_asind() {
 fn test_acosd() {
     crate::generic::test_acosd_special::<F32>();
 
-    test_acos_with(|x| {
+    test_acos_with(Unit::Degrees, |x| {
         let actual = x.acosd();
 
         let mut expected = to_rug(x);
@@ -142,7 +142,7 @@ fn test_acosd() {
 fn test_atand() {
     crate::generic::test_atand_special::<F32>();
 
-    test_atan_with(|x| {
+    test_atan_with(Unit::Degrees, |x| {
         let actual = x.atand();
         if actual.is_nan() {
             assert_total_eq!((-x).atand(), actual);
@@ -167,7 +167,7 @@ fn test_atand() {
 fn test_atan2d() {
     crate::generic::test_atan2d_special::<F32>();
 
-    test_atan2_with(|y, x| {
+    test_atan2_with(Unit::Degrees, |y, x| {
         let actual = y.atan2d(x);
         assert_total_eq!((-y).atan2d(x), -actual);
 
@@ -188,7 +188,7 @@ fn test_atan2d() {
 fn test_asinpi() {
     crate::generic::test_asinpi_special::<F32>();
 
-    test_asin_with(|x| {
+    test_asin_with(Unit::HalfRevs, |x| {
         let actual = x.asinpi();
         if actual.is_nan() {
             assert_total_eq!((-x).asinpi(), actual);
@@ -213,7 +213,7 @@ fn test_asinpi() {
 fn test_acospi() {
     crate::generic::test_acospi_special::<F32>();
 
-    test_acos_with(|x| {
+    test_acos_with(Unit::HalfRevs, |x| {
         let actual = x.acospi();
 
         let mut expected = to_rug(x);
@@ -233,7 +233,7 @@ fn test_acospi() {
 fn test_atanpi() {
     crate::generic::test_atanpi_special::<F32>();
 
-    test_atan_with(|x| {
+    test_atan_with(Unit::HalfRevs, |x| {
         let actual = x.atanpi();
         if actual.is_nan() {
             assert_total_eq!((-x).atanpi(), actual);
@@ -258,7 +258,7 @@ fn test_atanpi() {
 fn test_atan2pi() {
     crate::generic::test_atan2pi_special::<F32>();
 
-    test_atan2_with(|y, x| {
+    test_atan2_with(Unit::HalfRevs, |y, x| {
         let actual = y.atan2pi(x);
         assert_total_eq!((-y).atan2pi(x), -actual);
 
@@ -275,7 +275,15 @@ fn test_atan2pi() {
     });
 }
 
-fn test_asin_with(mut f: impl FnMut(F32)) {
+/// Angle unit of the results of the inverse trigonometric functions.
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum Unit {
+    Radians,
+    Degrees,
+    HalfRevs,
+}
+
+fn test_asin_with(unit: Unit, mut f: impl FnMut(F32)) {
     // Test special values
     for x in values::specials() {
         f(x);
@@ -294,18 +302,17 @@ fn test_asin_with(mut f: impl FnMut(F32)) {
     f(F32::from_int(1));
 
     // Generated test data
-    for x in crate::data::read_data_file::<F32>("f32/asin.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/asind.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/asinpi.txt") {
+    let data_file = match unit {
+        Unit::Radians => "f32/asin.txt",
+        Unit::Degrees => "f32/asind.txt",
+        Unit::HalfRevs => "f32/asinpi.txt",
+    };
+    for x in crate::data::read_data_file::<F32>(data_file) {
         f(x);
     }
 }
 
-fn test_acos_with(mut f: impl FnMut(F32)) {
+fn test_acos_with(unit: Unit, mut f: impl FnMut(F32)) {
     // Test special values
     for x in values::specials() {
         f(x);
@@ -329,18 +336,17 @@ fn test_acos_with(mut f: impl FnMut(F32)) {
     f(F32::from_int(-1));
 
     // Generated test data
-    for x in crate::data::read_data_file::<F32>("f32/acos.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/acosd.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/acospi.txt") {
+    let data_file = match unit {
+        Unit::Radians => "f32/acos.txt",
+        Unit::Degrees => "f32/acosd.txt",
+        Unit::HalfRevs => "f32/acospi.txt",
+    };
+    for x in crate::data::read_data_file::<F32>(data_file) {
         f(x);
     }
 }
 
-fn test_atan_with(mut f: impl FnMut(F32)) {
+fn test_atan_with(unit: Unit, mut f: impl FnMut(F32)) {
     // Test special values
     for x in values::specials() {
         f(x);
@@ -359,18 +365,17 @@ fn test_atan_with(mut f: impl FnMut(F32)) {
     f(F32::from_int(1));
 
     // Generated test data
-    for x in crate::data::read_data_file::<F32>("f32/atan.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/atand.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/atanpi.txt") {
+    let data_file = match unit {
+        Unit::Radians => "f32/atan.txt",
+        Unit::Degrees => "f32/atand.txt",
+        Unit::HalfRevs => "f32/atanpi.txt",
+    };
+    for x in crate::data::read_data_file::<F32>(data_file) {
         f(x);
     }
 }
 
-fn test_atan2_with(mut f: impl FnMut(F32, F32)) {
+fn test_atan2_with(unit: Unit, mut f: impl FnMut(F32, F32)) {
     // Toggling the sign of `y` is done by the callers.
 
     // Test the ratios `|y / x|` between 2^-64 and 2^64, at every scale,
@@ -413,27 +418,27 @@ fn test_atan2_with(mut f: impl FnMut(F32, F32)) {
     let one = F32::from_int(1);
 
     // Generated test data
-    for x in crate::data::read_data_file::<F32>("f32/atan.txt") {
-        f(x, one);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/atand.txt") {
-        f(x, one);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/atanpi.txt") {
+    let data_file = match unit {
+        Unit::Radians => "f32/atan.txt",
+        Unit::Degrees => "f32/atand.txt",
+        Unit::HalfRevs => "f32/atanpi.txt",
+    };
+    for x in crate::data::read_data_file::<F32>(data_file) {
         f(x, one);
     }
 
-    // Test data from core-math
-    for [y, x] in crate::data::read_data_file::<[F32; 2]>("core-math/binary32/atan2f.wc") {
-        if y.is_nan() || x.is_nan() {
-            continue;
+    // Test data from core-math (which has none for degrees)
+    let data_files: &[&str] = match unit {
+        Unit::Radians => &["core-math/binary32/atan2f.wc"],
+        Unit::Degrees => &[],
+        Unit::HalfRevs => &["core-math/binary32/atan2pif.wc"],
+    };
+    for data_file in data_files {
+        for [y, x] in crate::data::read_data_file::<[F32; 2]>(data_file) {
+            if y.is_nan() || x.is_nan() {
+                continue;
+            }
+            f(y, x);
         }
-        f(y, x);
-    }
-    for [y, x] in crate::data::read_data_file::<[F32; 2]>("core-math/binary32/atan2pif.wc") {
-        if y.is_nan() || x.is_nan() {
-            continue;
-        }
-        f(y, x);
     }
 }
