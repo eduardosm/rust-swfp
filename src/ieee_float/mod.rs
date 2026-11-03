@@ -549,7 +549,9 @@ impl<S: Semantics> IeeeFloat<S> {
                         | (Round::TowardPositive, true)
                         | (Round::TowardNegative, false)
                         | (Round::TowardZero, _) => Self::make_zero(self.sign),
-                        (Round::TowardNegative, true) | (Round::TowardPositive, false) => Self {
+                        (Round::TowardNegative, true)
+                        | (Round::TowardPositive, false)
+                        | (Round::AwayFromZero, _) => Self {
                             category: FpCategory::Normal,
                             sign: self.sign,
                             exp: S::Exp::ZERO,
@@ -1189,6 +1191,7 @@ impl<S: Semantics> IeeeFloat<S> {
                 (_, true) => true,
             },
             Round::TowardZero => false,
+            Round::AwayFromZero => loss != RoundLoss::Zero,
         };
         value + T::from(bump)
     }
@@ -1328,7 +1331,8 @@ impl<S: Semantics> IeeeFloat<S> {
             (Round::NearestTiesToEven, _)
             | (Round::NearestTiesToAway, _)
             | (Round::TowardPositive, false)
-            | (Round::TowardNegative, true) => Self::make_inf(sign),
+            | (Round::TowardNegative, true)
+            | (Round::AwayFromZero, _) => Self::make_inf(sign),
             (Round::TowardPositive, true)
             | (Round::TowardNegative, false)
             | (Round::TowardZero, _) => Self::make_largest_finite(sign),
@@ -1347,9 +1351,9 @@ impl<S: Semantics> IeeeFloat<S> {
             | (Round::TowardPositive, true)
             | (Round::TowardNegative, false)
             | (Round::TowardZero, _) => Self::make_zero(sign),
-            (Round::TowardPositive, false) | (Round::TowardNegative, true) => {
-                Self::make_smallest_subnormal(sign)
-            }
+            (Round::TowardPositive, false)
+            | (Round::TowardNegative, true)
+            | (Round::AwayFromZero, _) => Self::make_smallest_subnormal(sign),
         };
         (value, FpStatus::UNDERFLOW | FpStatus::INEXACT)
     }

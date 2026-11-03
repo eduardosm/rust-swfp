@@ -12,6 +12,7 @@ fn test_sqrt() {
         (swfp::Round::TowardPositive, rug::float::Round::Up),
         (swfp::Round::TowardNegative, rug::float::Round::Down),
         (swfp::Round::TowardZero, rug::float::Round::Zero),
+        (swfp::Round::AwayFromZero, rug::float::Round::AwayZero),
     ];
 
     test_with(|x| {

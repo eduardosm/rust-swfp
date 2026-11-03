@@ -22,12 +22,13 @@ mod f8e5m2;
 mod status;
 mod x87f80;
 
-const ALL_ROUND_MODES: [Round; 5] = [
+const ALL_ROUND_MODES: [Round; 6] = [
     Round::NearestTiesToEven,
     Round::NearestTiesToAway,
     Round::TowardPositive,
     Round::TowardNegative,
     Round::TowardZero,
+    Round::AwayFromZero,
 ];
 
 fn mk_f16(sign: bool, exp: i8, mant: u16) -> swfp::F16 {
@@ -215,7 +216,11 @@ where
             );
             check_cases(
                 expected_az,
-                &[Round::NearestTiesToAway, Round::TowardPositive],
+                &[
+                    Round::NearestTiesToAway,
+                    Round::TowardPositive,
+                    Round::AwayFromZero,
+                ],
             );
         }
         (Loss::HalfEven, true) => {
@@ -229,7 +234,11 @@ where
             );
             check_cases(
                 expected_az,
-                &[Round::NearestTiesToAway, Round::TowardNegative],
+                &[
+                    Round::NearestTiesToAway,
+                    Round::TowardNegative,
+                    Round::AwayFromZero,
+                ],
             );
         }
         (Loss::HalfOdd, false) => {
@@ -240,6 +249,7 @@ where
                     Round::NearestTiesToEven,
                     Round::NearestTiesToAway,
                     Round::TowardPositive,
+                    Round::AwayFromZero,
                 ],
             );
         }
@@ -251,6 +261,7 @@ where
                     Round::NearestTiesToEven,
                     Round::NearestTiesToAway,
                     Round::TowardNegative,
+                    Round::AwayFromZero,
                 ],
             );
         }
@@ -262,6 +273,7 @@ where
                     Round::NearestTiesToEven,
                     Round::NearestTiesToAway,
                     Round::TowardPositive,
+                    Round::AwayFromZero,
                 ],
             );
         }
@@ -273,6 +285,7 @@ where
                     Round::NearestTiesToEven,
                     Round::NearestTiesToAway,
                     Round::TowardNegative,
+                    Round::AwayFromZero,
                 ],
             );
         }
@@ -286,7 +299,7 @@ where
                     Round::TowardZero,
                 ],
             );
-            check_cases(expected_az, &[Round::TowardPositive]);
+            check_cases(expected_az, &[Round::TowardPositive, Round::AwayFromZero]);
         }
         (Loss::HalfDown, true) => {
             check_cases(
@@ -298,7 +311,7 @@ where
                     Round::TowardZero,
                 ],
             );
-            check_cases(expected_az, &[Round::TowardNegative]);
+            check_cases(expected_az, &[Round::TowardNegative, Round::AwayFromZero]);
         }
         (Loss::Overflow, false) => {
             check_cases(expected_tz, &[Round::TowardNegative, Round::TowardZero]);
@@ -308,6 +321,7 @@ where
                     Round::NearestTiesToEven,
                     Round::NearestTiesToAway,
                     Round::TowardPositive,
+                    Round::AwayFromZero,
                 ],
             );
         }
@@ -319,6 +333,7 @@ where
                     Round::NearestTiesToEven,
                     Round::NearestTiesToAway,
                     Round::TowardNegative,
+                    Round::AwayFromZero,
                 ],
             );
         }
@@ -355,9 +370,10 @@ fn check_float_round<F>(
                 Round::NearestTiesToEven | Round::NearestTiesToAway => {
                     loss != Loss::ThreeQuartersUp
                 }
-                Round::TowardPositive | Round::TowardNegative | Round::TowardZero => {
-                    !matches!(loss, Loss::HalfUp | Loss::ThreeQuartersUp)
-                }
+                Round::TowardPositive
+                | Round::TowardNegative
+                | Round::TowardZero
+                | Round::AwayFromZero => !matches!(loss, Loss::HalfUp | Loss::ThreeQuartersUp),
             }
     };
 

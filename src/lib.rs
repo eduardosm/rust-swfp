@@ -84,6 +84,8 @@ pub enum Round {
     TowardNegative,
     /// Round towards zero.
     TowardZero,
+    /// Round away from zero.
+    AwayFromZero,
 }
 
 /// Indicates the status of a floating-point operation.

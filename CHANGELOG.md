@@ -15,6 +15,11 @@
   - Conversions to integer report `INVALID` (instead of overflow) when the
     input is infinity or out of range.
   - Converting negative zero to integer does not report `INEXACT` anymore.
+- `Round` enum has a new variant (see "Added" section).
+
+### Added
+
+- New `Round::AwayFromZero` rounding mode.
 
 ### Changed
 
