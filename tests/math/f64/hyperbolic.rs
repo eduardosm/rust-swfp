@@ -6,7 +6,7 @@ use super::{check_exact, to_rug, values};
 fn test_sinh_cosh() {
     crate::generic::test_sinh_cosh_special::<F64>();
 
-    test_with(|x| {
+    test_with(Func::SinhCosh, |x| {
         let actual_sinh = x.sinh();
         let actual_cosh = x.cosh();
         assert_total_eq!((-x).cosh(), actual_cosh);
@@ -47,7 +47,7 @@ fn test_sinh_cosh() {
 fn test_tanh() {
     crate::generic::test_tanh_special::<F64>();
 
-    test_with(|x| {
+    test_with(Func::Tanh, |x| {
         let actual = x.tanh();
         if actual.is_nan() {
             assert_total_eq!((-x).tanh(), actual);
@@ -68,7 +68,14 @@ fn test_tanh() {
     });
 }
 
-fn test_with(mut f: impl FnMut(F64)) {
+/// A function of the hyperbolic family.
+#[derive(Copy, Clone)]
+enum Func {
+    SinhCosh,
+    Tanh,
+}
+
+fn test_with(func: Func, mut f: impl FnMut(F64)) {
     // Test special values
     for x in values::specials() {
         f(x);
@@ -89,22 +96,16 @@ fn test_with(mut f: impl FnMut(F64)) {
     }
 
     // Test data from core-math
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/sinh.wc") {
-        if x.is_nan() {
-            continue;
+    let data_files: &[&str] = match func {
+        Func::SinhCosh => &["core-math/binary64/sinh.wc", "core-math/binary64/cosh.wc"],
+        Func::Tanh => &["core-math/binary64/tanh.wc"],
+    };
+    for data_file in data_files {
+        for x in crate::data::read_data_file::<F64>(data_file) {
+            if x.is_nan() {
+                continue;
+            }
+            f(x);
         }
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/cosh.wc") {
-        if x.is_nan() {
-            continue;
-        }
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/tanh.wc") {
-        if x.is_nan() {
-            continue;
-        }
-        f(x);
     }
 }

@@ -116,6 +116,36 @@ pub(super) fn interval(lo: F64, hi: F64, n: u32) -> impl Iterator<Item = F64> {
         .map(move |u| lo + (hi - lo) * F64::from_uint(u.into()).scalbn(-53))
 }
 
+/// Returns an iterator over `x` and the `n` values before and after it.
+pub(super) fn around(x: F64, n: u32) -> impl Iterator<Item = F64> {
+    let max = ordinal(F64::INFINITY);
+    let ord = ordinal(x);
+    (ord - i64::from(n)..=ord + i64::from(n))
+        .filter(move |o| o.abs() <= max)
+        .map(from_ordinal)
+}
+
+/// Position of `x` in the ordered sequence of values (`+0` and `-0` are
+/// both mapped to zero).
+fn ordinal(x: F64) -> i64 {
+    let bits = x.to_bits();
+    let mag = (bits & !0x8000_0000_0000_0000) as i64;
+    if (bits & 0x8000_0000_0000_0000) != 0 {
+        -mag
+    } else {
+        mag
+    }
+}
+
+/// Inverse of [`ordinal`] (zero is mapped to `+0`).
+fn from_ordinal(ord: i64) -> F64 {
+    if ord < 0 {
+        F64::from_bits(ord.unsigned_abs() | 0x8000_0000_0000_0000)
+    } else {
+        F64::from_bits(ord as u64)
+    }
+}
+
 /// Returns an iterator over the exponent pairs `(e1, e2)` with `e1 - e2 = d`
 /// for each `d` in `diffs`, where both are exponents of positive finite values
 /// (from -1074 to 1023, see [`binade_pairs`]).
@@ -274,4 +304,40 @@ fn test_interval() {
             .fold(0.0, f64::max);
         assert!(max_gap <= 2.0 * (hi - lo) / f64::from(n));
     }
+}
+
+#[test]
+fn test_around() {
+    let collect = |x: f64, n: u32| {
+        around(F64::from_host(x), n)
+            .map(F64::to_host)
+            .collect::<Vec<f64>>()
+    };
+    let one_below = 1.0 - f64::EPSILON / 2.0;
+    assert_eq!(
+        collect(1.0, 2),
+        [
+            one_below - f64::EPSILON / 2.0,
+            one_below,
+            1.0,
+            1.0 + f64::EPSILON,
+            1.0 + 2.0 * f64::EPSILON
+        ],
+    );
+    // Across zero (only one zero)
+    let min_sub = mk_subnormal(1, false).to_host();
+    assert_eq!(collect(0.0, 1), [-min_sub, 0.0, min_sub]);
+    assert_eq!(collect(-0.0, 1), [-min_sub, 0.0, min_sub]);
+    assert!(collect(-0.0, 1)[1].is_sign_positive());
+    // Not beyond infinity
+    let below_max = f64::from_bits(f64::MAX.to_bits() - 1);
+    let below_below_max = f64::from_bits(f64::MAX.to_bits() - 2);
+    assert_eq!(
+        collect(f64::MAX, 2),
+        [below_below_max, below_max, f64::MAX, f64::INFINITY]
+    );
+    assert_eq!(
+        collect(f64::NEG_INFINITY, 1),
+        [f64::NEG_INFINITY, -f64::MAX]
+    );
 }

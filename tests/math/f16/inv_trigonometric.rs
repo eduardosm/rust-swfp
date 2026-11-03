@@ -76,7 +76,7 @@ fn test_atan() {
 fn test_atan2() {
     crate::generic::test_atan2_special::<F16>();
 
-    test_atan2_with(|y, x| {
+    test_atan2_with(Unit::Radians, |y, x| {
         let actual = y.atan2(x);
         assert_total_eq!((-y).atan2(x), -actual);
 
@@ -167,7 +167,7 @@ fn test_atand() {
 fn test_atan2d() {
     crate::generic::test_atan2d_special::<F16>();
 
-    test_atan2_with(|y, x| {
+    test_atan2_with(Unit::Degrees, |y, x| {
         let actual = y.atan2d(x);
         assert_total_eq!((-y).atan2d(x), -actual);
 
@@ -258,7 +258,7 @@ fn test_atanpi() {
 fn test_atan2pi() {
     crate::generic::test_atan2pi_special::<F16>();
 
-    test_atan2_with(|y, x| {
+    test_atan2_with(Unit::HalfRevs, |y, x| {
         let actual = y.atan2pi(x);
         assert_total_eq!((-y).atan2pi(x), -actual);
 
@@ -334,7 +334,15 @@ fn test_atan_with(mut f: impl FnMut(F16)) {
     }
 }
 
-fn test_atan2_with(mut f: impl FnMut(F16, F16)) {
+/// Angle unit of the results of the inverse trigonometric functions.
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum Unit {
+    Radians,
+    Degrees,
+    HalfRevs,
+}
+
+fn test_atan2_with(unit: Unit, mut f: impl FnMut(F16, F16)) {
     // Toggling the sign of `y` is done by the callers.
 
     // Test all the ratios `|y / x|` at every scale, including subnormals
@@ -366,13 +374,12 @@ fn test_atan2_with(mut f: impl FnMut(F16, F16)) {
     }
 
     // Generated test data
-    for [y, x] in crate::data::read_data_file::<[F16; 2]>("f16/atan2.txt") {
-        f(y, x);
-    }
-    for [y, x] in crate::data::read_data_file::<[F16; 2]>("f16/atan2d.txt") {
-        f(y, x);
-    }
-    for [y, x] in crate::data::read_data_file::<[F16; 2]>("f16/atan2pi.txt") {
+    let data_file = match unit {
+        Unit::Radians => "f16/atan2.txt",
+        Unit::Degrees => "f16/atan2d.txt",
+        Unit::HalfRevs => "f16/atan2pi.txt",
+    };
+    for [y, x] in crate::data::read_data_file::<[F16; 2]>(data_file) {
         f(y, x);
     }
 }

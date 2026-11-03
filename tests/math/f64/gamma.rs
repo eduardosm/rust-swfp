@@ -6,7 +6,7 @@ use super::{check_exact, to_rug, values};
 fn test_gamma() {
     crate::generic::test_gamma_special::<F64>();
 
-    test_with(|x| {
+    test_with(Func::Gamma, |x| {
         let actual = x.gamma();
 
         let mut expected = to_rug(x);
@@ -26,7 +26,7 @@ fn test_gamma() {
 fn test_ln_gamma() {
     crate::generic::test_ln_gamma_special::<F64>();
 
-    test_with(|x| {
+    test_with(Func::LnGamma, |x| {
         let (actual, actual_sign) = x.ln_gamma();
 
         let mut expected = to_rug(x);
@@ -52,7 +52,14 @@ fn test_ln_gamma() {
     });
 }
 
-fn test_with(mut f: impl FnMut(F64)) {
+/// A function of the gamma family.
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum Func {
+    Gamma,
+    LnGamma,
+}
+
+fn test_with(func: Func, mut f: impl FnMut(F64)) {
     // Test special values
     for x in values::specials() {
         f(x);
@@ -75,6 +82,14 @@ fn test_with(mut f: impl FnMut(F64)) {
         let x = F64::from_uint(x) / F64::from_uint(100);
         f(x);
         f(-x);
+    }
+
+    // Test the arguments around the negative integers (poles), whose results
+    // are large or overflow
+    for n in 1..=200 {
+        for x in values::around(F64::from_int(-n), 100) {
+            f(x);
+        }
     }
 
     // Roots of ln_gamma (i.e., where abs(gamma(x)) = 1 and ln_gamma(x) = 0)
@@ -114,51 +129,56 @@ fn test_with(mut f: impl FnMut(F64)) {
         F64::from_host(-17.000000000000004),
     ];
 
+    // Test the arguments around the roots, whose results with ln_gamma are
+    // close to zero
+    let n = if func == Func::LnGamma { 10_000 } else { 1000 };
     for root in roots {
         f(root);
 
-        for bump in 1..=10_000 {
+        for bump in 1..=n {
             let x = F64::from_bits(root.to_bits() + bump);
             f(x);
 
             let x = F64::from_bits(root.to_bits() - bump);
             f(x);
         }
-
-        // Further away from the root, in intervals that extend from 2^15 to
-        // 2^48 ULPs at each side of it (so each scale of distances gets a
-        // similar number of values)
-        for shift in 15..=48 {
-            let w = (F64::from_bits(root.to_bits() + (1 << shift)) - root).abs();
-            for x in values::interval(root - w, root + w, 32) {
-                f(x);
-            }
-        }
     }
 
-    // Hard-to-round cases of ln_gamma near its negative roots
-    let hard_cases = [
-        0xC003A7DC89BBC04B, // -2.456963611643038
-        0xC003A7FBE7319E44, // -2.4570234357850342
-        0xC003A7FC91A9B4CA, // -2.457024705878756
-        0xC003A7FD93C0E770, // -2.457026628803696
-        0xC005FB410BD22679, // -2.7476826594836976
-        0xC005FB410C2B1733, // -2.747682662072202
-        0xC005FB41122A6FCC, // -2.7476827067566543
-        0xC005FB4318131FD9, // -2.747686565478926
-    ];
-    for bits in hard_cases {
-        f(F64::from_bits(bits));
+    if func == Func::LnGamma {
+        // Further away from the roots, in intervals that extend from 2^15 to
+        // 2^48 ULPs at each side of them (so each scale of distances gets a
+        // similar number of values)
+        for root in roots {
+            for shift in 15..=48 {
+                let w = (F64::from_bits(root.to_bits() + (1 << shift)) - root).abs();
+                for x in values::interval(root - w, root + w, 32) {
+                    f(x);
+                }
+            }
+        }
+
+        // Hard-to-round cases near the negative roots
+        let hard_cases = [
+            0xC003A7DC89BBC04B, // -2.456963611643038
+            0xC003A7FBE7319E44, // -2.4570234357850342
+            0xC003A7FC91A9B4CA, // -2.457024705878756
+            0xC003A7FD93C0E770, // -2.457026628803696
+            0xC005FB410BD22679, // -2.7476826594836976
+            0xC005FB410C2B1733, // -2.747682662072202
+            0xC005FB41122A6FCC, // -2.7476827067566543
+            0xC005FB4318131FD9, // -2.747686565478926
+        ];
+        for bits in hard_cases {
+            f(F64::from_bits(bits));
+        }
     }
 
     // Test data from core-math
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/tgamma.wc") {
-        if !x.is_finite() {
-            continue;
-        }
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/lgamma.wc") {
+    let data_file = match func {
+        Func::Gamma => "core-math/binary64/tgamma.wc",
+        Func::LnGamma => "core-math/binary64/lgamma.wc",
+    };
+    for x in crate::data::read_data_file::<F64>(data_file) {
         if !x.is_finite() {
             continue;
         }

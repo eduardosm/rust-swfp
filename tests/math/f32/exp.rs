@@ -6,7 +6,7 @@ use super::{check_exact, to_rug, values};
 fn test_exp() {
     crate::generic::test_exp_special::<F32>();
 
-    test_with(|x| {
+    test_with(Func::Exp, |x| {
         let actual = x.exp();
 
         let mut expected = to_rug(x);
@@ -26,7 +26,7 @@ fn test_exp() {
 fn test_exp_m1() {
     crate::generic::test_exp_m1_special::<F32>();
 
-    test_with(|x| {
+    test_with(Func::ExpM1, |x| {
         let actual = x.exp_m1();
 
         let mut expected = to_rug(x);
@@ -46,7 +46,7 @@ fn test_exp_m1() {
 fn test_exp2() {
     crate::generic::test_exp2_special::<F32>();
 
-    test_with(|x| {
+    test_with(Func::Exp2, |x| {
         let actual = x.exp2();
 
         let mut expected = to_rug(x);
@@ -66,7 +66,7 @@ fn test_exp2() {
 fn test_exp2_m1() {
     crate::generic::test_exp2_m1_special::<F32>();
 
-    test_with(|x| {
+    test_with(Func::Exp2M1, |x| {
         let actual = x.exp2_m1();
 
         let mut expected = to_rug(x);
@@ -86,7 +86,7 @@ fn test_exp2_m1() {
 fn test_exp10() {
     crate::generic::test_exp10_special::<F32>();
 
-    test_with(|x| {
+    test_with(Func::Exp10, |x| {
         let actual = x.exp10();
 
         let mut expected = to_rug(x);
@@ -106,7 +106,7 @@ fn test_exp10() {
 fn test_exp10_m1() {
     crate::generic::test_exp10_m1_special::<F32>();
 
-    test_with(|x| {
+    test_with(Func::Exp10M1, |x| {
         let actual = x.exp10_m1();
 
         let mut expected = to_rug(x);
@@ -122,7 +122,18 @@ fn test_exp10_m1() {
     });
 }
 
-fn test_with(mut f: impl FnMut(F32)) {
+/// A function of the `exp` family.
+#[derive(Copy, Clone)]
+enum Func {
+    Exp,
+    ExpM1,
+    Exp2,
+    Exp2M1,
+    Exp10,
+    Exp10M1,
+}
+
+fn test_with(func: Func, mut f: impl FnMut(F32)) {
     // Test special values
     for x in values::specials() {
         f(x);
@@ -146,22 +157,15 @@ fn test_with(mut f: impl FnMut(F32)) {
     }
 
     // Generated test data
-    for x in crate::data::read_data_file::<F32>("f32/exp.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/exp_m1.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/exp2.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/exp2_m1.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/exp10.txt") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F32>("f32/exp10_m1.txt") {
+    let data_file = match func {
+        Func::Exp => "f32/exp.txt",
+        Func::ExpM1 => "f32/exp_m1.txt",
+        Func::Exp2 => "f32/exp2.txt",
+        Func::Exp2M1 => "f32/exp2_m1.txt",
+        Func::Exp10 => "f32/exp10.txt",
+        Func::Exp10M1 => "f32/exp10_m1.txt",
+    };
+    for x in crate::data::read_data_file::<F32>(data_file) {
         f(x);
     }
 }

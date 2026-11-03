@@ -6,7 +6,7 @@ use super::{check_exact, to_rug, values};
 fn test_sin_cos() {
     crate::generic::test_sin_cos_special::<F64>();
 
-    test_with(|x| {
+    test_with(Unit::Radians, |x| {
         let actual_sin = x.sin();
         let actual_cos = x.cos();
         assert_total_eq!((-x).cos(), actual_cos);
@@ -47,7 +47,7 @@ fn test_sin_cos() {
 fn test_tan() {
     crate::generic::test_tan_special::<F64>();
 
-    test_with(|x| {
+    test_with(Unit::Radians, |x| {
         let actual = x.tan();
         if actual.is_nan() {
             assert_total_eq!((-x).tan(), actual);
@@ -72,7 +72,7 @@ fn test_tan() {
 fn test_sind_cosd() {
     crate::generic::test_sind_cosd_special::<F64>();
 
-    test_with(|x| {
+    test_with(Unit::Degrees, |x| {
         let actual_sin = x.sind();
         let actual_cos = x.cosd();
         assert_total_eq!((-x).cosd(), actual_cos);
@@ -113,7 +113,7 @@ fn test_sind_cosd() {
 fn test_tand() {
     crate::generic::test_tand_special::<F64>();
 
-    test_with(|x| {
+    test_with(Unit::Degrees, |x| {
         let actual = x.tand();
         if actual.is_nan() {
             assert_total_eq!((-x).tand(), actual);
@@ -138,7 +138,7 @@ fn test_tand() {
 fn test_sinpi_cospi() {
     crate::generic::test_sinpi_cospi_special::<F64>();
 
-    test_with(|x| {
+    test_with(Unit::HalfRevs, |x| {
         let actual_sin = x.sinpi();
         let actual_cos = x.cospi();
         assert_total_eq!((-x).cospi(), actual_cos);
@@ -179,7 +179,7 @@ fn test_sinpi_cospi() {
 fn test_tanpi() {
     crate::generic::test_tanpi_special::<F64>();
 
-    test_with(|x| {
+    test_with(Unit::HalfRevs, |x| {
         let actual = x.tanpi();
         if actual.is_nan() {
             assert_total_eq!((-x).tanpi(), actual);
@@ -200,7 +200,15 @@ fn test_tanpi() {
     });
 }
 
-fn test_with(mut f: impl FnMut(F64)) {
+/// Angle unit of the trigonometric functions.
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum Unit {
+    Radians,
+    Degrees,
+    HalfRevs,
+}
+
+fn test_with(unit: Unit, mut f: impl FnMut(F64)) {
     // Test special values
     for x in values::specials() {
         f(x);
@@ -232,61 +240,53 @@ fn test_with(mut f: impl FnMut(F64)) {
     f(F64::from_host(3054214.5490637687));
     f(F64::from_host(917340800458.2274));
 
+    // Test the multiples of an eighth of a half revolution (π/8 radians, 22.5
+    // degrees or 1/8 half revolution) at several scales, and the arguments
+    // slightly away from them
     let one = F64::from_uint(1);
-    let frac_pi_8 = F64::from_host(std::f64::consts::FRAC_PI_8);
+    let step = match unit {
+        Unit::Radians => F64::from_host(std::f64::consts::FRAC_PI_8),
+        Unit::Degrees => F64::from_host(22.5),
+        Unit::HalfRevs => F64::from_host(0.125),
+    };
     for f1 in 1..=100 {
         let f1 = F64::from_uint(f1);
         for f2 in 0..=20 {
             let f2 = F64::from_uint(1 << f2);
 
-            f(frac_pi_8 * f1 * f2);
+            f(step * f1 * f2);
             for f3 in 1..=20 {
                 let f3 = F64::from_int(-f3);
-                f(frac_pi_8 * f1 * f2 * (one + f3.exp()));
-                f(frac_pi_8 * f1 * f2 * (one - f3.exp()));
-                f(frac_pi_8 * f1 * f2 * (one + f3.exp2()));
-                f(frac_pi_8 * f1 * f2 * (one - f3.exp2()));
-                f(frac_pi_8 * f1 * f2 * (one + f3.exp10()));
-                f(frac_pi_8 * f1 * f2 * (one - f3.exp10()));
+                f(step * f1 * f2 * (one + f3.exp()));
+                f(step * f1 * f2 * (one - f3.exp()));
+                f(step * f1 * f2 * (one + f3.exp2()));
+                f(step * f1 * f2 * (one - f3.exp2()));
+                f(step * f1 * f2 * (one + f3.exp10()));
+                f(step * f1 * f2 * (one - f3.exp10()));
             }
         }
     }
 
-    // Test data from core-math
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/sin.wc") {
-        if !x.is_finite() {
-            continue;
+    // Test data from core-math (which has none for degrees)
+    let data_files: &[&str] = match unit {
+        Unit::Radians => &[
+            "core-math/binary64/sin.wc",
+            "core-math/binary64/cos.wc",
+            "core-math/binary64/tan.wc",
+        ],
+        Unit::Degrees => &[],
+        Unit::HalfRevs => &[
+            "core-math/binary64/sinpi.wc",
+            "core-math/binary64/cospi.wc",
+            "core-math/binary64/tanpi.wc",
+        ],
+    };
+    for data_file in data_files {
+        for x in crate::data::read_data_file::<F64>(data_file) {
+            if !x.is_finite() {
+                continue;
+            }
+            f(x);
         }
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/cos.wc") {
-        if !x.is_finite() {
-            continue;
-        }
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/tan.wc") {
-        if !x.is_finite() {
-            continue;
-        }
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/sinpi.wc") {
-        if !x.is_finite() {
-            continue;
-        }
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/cospi.wc") {
-        if !x.is_finite() {
-            continue;
-        }
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/tanpi.wc") {
-        if !x.is_finite() {
-            continue;
-        }
-        f(x);
     }
 }

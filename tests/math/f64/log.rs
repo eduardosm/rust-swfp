@@ -6,7 +6,7 @@ use super::{check_exact, to_rug, values};
 fn test_ln() {
     crate::generic::test_ln_special::<F64>();
 
-    test_log_with(|x| {
+    test_log_with(Func::Ln, |x| {
         let actual = x.ln();
 
         let mut expected = to_rug(x);
@@ -26,7 +26,7 @@ fn test_ln() {
 fn test_ln_1p() {
     crate::generic::test_ln_1p_special::<F64>();
 
-    test_log_1p_with(|x| {
+    test_log_1p_with(Func::Ln1p, |x| {
         let actual = x.ln_1p();
 
         let mut expected = to_rug(x);
@@ -46,7 +46,7 @@ fn test_ln_1p() {
 fn test_log2() {
     crate::generic::test_log2_special::<F64>();
 
-    test_log_with(|x| {
+    test_log_with(Func::Log2, |x| {
         let actual = x.log2();
 
         let mut expected = to_rug(x);
@@ -66,7 +66,7 @@ fn test_log2() {
 fn test_log2_1p() {
     crate::generic::test_log2_1p_special::<F64>();
 
-    test_log_1p_with(|x| {
+    test_log_1p_with(Func::Log2_1p, |x| {
         let actual = x.log2_1p();
 
         let mut expected = to_rug(x);
@@ -86,7 +86,7 @@ fn test_log2_1p() {
 fn test_log10() {
     crate::generic::test_log10_special::<F64>();
 
-    test_log_with(|x| {
+    test_log_with(Func::Log10, |x| {
         let actual = x.log10();
 
         let mut expected = to_rug(x);
@@ -106,7 +106,7 @@ fn test_log10() {
 fn test_log10_1p() {
     crate::generic::test_log10_1p_special::<F64>();
 
-    test_log_1p_with(|x| {
+    test_log_1p_with(Func::Log10_1p, |x| {
         let actual = x.log10_1p();
 
         let mut expected = to_rug(x);
@@ -122,7 +122,18 @@ fn test_log10_1p() {
     });
 }
 
-fn test_log_with(mut f: impl FnMut(F64)) {
+/// A function of the `log` family.
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum Func {
+    Ln,
+    Ln1p,
+    Log2,
+    Log2_1p,
+    Log10,
+    Log10_1p,
+}
+
+fn test_log_with(func: Func, mut f: impl FnMut(F64)) {
     // Test special values
     for x in values::specials() {
         f(x);
@@ -157,18 +168,18 @@ fn test_log_with(mut f: impl FnMut(F64)) {
     }
 
     // Test data from core-math
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/log.wc") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/log2.wc") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/log10.wc") {
+    let data_file = match func {
+        Func::Ln => "core-math/binary64/log.wc",
+        Func::Log2 => "core-math/binary64/log2.wc",
+        Func::Log10 => "core-math/binary64/log10.wc",
+        Func::Ln1p | Func::Log2_1p | Func::Log10_1p => unreachable!(),
+    };
+    for x in crate::data::read_data_file::<F64>(data_file) {
         f(x);
     }
 }
 
-fn test_log_1p_with(mut f: impl FnMut(F64)) {
+fn test_log_1p_with(func: Func, mut f: impl FnMut(F64)) {
     // Test special values
     for x in values::specials() {
         f(x);
@@ -196,13 +207,13 @@ fn test_log_1p_with(mut f: impl FnMut(F64)) {
     }
 
     // Test data from core-math
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/log1p.wc") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/log2p1.wc") {
-        f(x);
-    }
-    for x in crate::data::read_data_file::<F64>("core-math/binary64/log10p1.wc") {
+    let data_file = match func {
+        Func::Ln1p => "core-math/binary64/log1p.wc",
+        Func::Log2_1p => "core-math/binary64/log2p1.wc",
+        Func::Log10_1p => "core-math/binary64/log10p1.wc",
+        Func::Ln | Func::Log2 | Func::Log10 => unreachable!(),
+    };
+    for x in crate::data::read_data_file::<F64>(data_file) {
         f(x);
     }
 }
